@@ -1,0 +1,56 @@
+name: ci
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  pr-title:
+    name: pr-title
+    runs-on: ubuntu-latest
+    steps:
+      # With squash-only merges the PR title becomes the commit on main, so it
+      # must be a valid Conventional Commit.
+      - name: Validate PR title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          pattern='^(feat|fix|docs|refactor|perf|test|build|ci|chore|style|revert)(\([a-z0-9._-]+\))?!?: [^ ].{0,71}$'
+          if [[ ! "$PR_TITLE" =~ $pattern ]]; then
+            echo "::error::PR title '$PR_TITLE' is not a Conventional Commit."
+            echo "Expected: <type>(<optional-scope>)!: <subject> (max 72 chars after the colon)."
+            echo "Example:  feat(mise-tasks): add retry helper to common.sh"
+            exit 1
+          fi
+
+  shellcheck:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Each skill's assets/ mirrors the project layout users copy it into, so
+      # lint from there for `source=` directives to resolve as they will for
+      # users.
+      # Assets are templates meant to be copied into a consumer repo, so lint
+      # them from their own assets/ root, where their .shellcheckrc and
+      # relative `source` paths resolve exactly as they will for a consumer.
+      - name: Lint shell scripts shipped in skills
+        run: |
+          status=0
+          for assets in */assets; do
+            [[ -d "$assets" ]] || continue
+            files=()
+            while IFS= read -r f; do
+              if head -n1 "$assets/$f" | grep -Eq '^#!.*\b(ba|z)?sh\b'; then
+                files+=("$f")
+              fi
+            done < <(cd "$assets" && find . -type f -print | sed 's|^\./||')
+            [[ ${#files[@]} -gt 0 ]] || continue
+            echo "::group::shellcheck $assets (${#files[@]} files)"
+            (cd "$assets" && shellcheck -x "${files[@]}") || status=1
+            echo "::endgroup::"
+          done
+          exit "$status"
