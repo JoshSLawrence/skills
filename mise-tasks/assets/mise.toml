@@ -1,0 +1,11 @@
+# Template mise.toml for a repo whose automation lives in mise-tasks/.
+# Pin the linters so every contributor and CI lint identically.
+[tools]
+shellcheck = "latest"
+shfmt = "latest"
+
+# Small or orchestration-only tasks stay here; scripts of any size go in
+# mise-tasks/ as file tasks.
+[tasks.check]
+description = "Run every verification task (add test/build here as they appear)"
+depends = ["lint"]

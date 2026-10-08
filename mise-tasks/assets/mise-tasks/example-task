@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+#MISE description="Example task: greet one or more targets (copy me)"
+#USAGE arg "[targets]" var=#true help="Things to greet" default="world"
+#USAGE flag "-n --dry-run" help="Print what would run without doing it"
+#USAGE flag "-g --greeting <greeting>" help="Greeting to use" default="hello" env="GREETING" {
+#USAGE   choices "hello" "hi" "howdy"
+#USAGE }
+set -euo pipefail
+
+# shellcheck source=mise-tasks/.lib/common.sh
+source "${MISE_PROJECT_ROOT:?run via 'mise run <task>'}/mise-tasks/.lib/common.sh"
+install_traps
+
+# Booleans arrive as "true" only when passed; map them onto the lib's DRY_RUN.
+[[ "${usage_dry_run:-false}" == "true" ]] && export DRY_RUN=1
+
+require_cmd printf "printf is a shell builtin; is this really bash?"
+
+# Variadic args arrive as one shell-quoted string; eval rebuilds the array.
+# `${usage_targets-}` (no colon) keeps `set -u` happy when unset.
+eval "targets=(${usage_targets-})"
+[[ ${#targets[@]} -gt 0 ]] || targets=("world")
+
+log_step "Greeting ${#targets[@]} target(s)"
+make_tmpdir work
+
+for target in "${targets[@]}"; do
+  log_info "Preparing greeting for '${target}'"
+  run printf '%s, %s!\n' "${usage_greeting?}" "$target"
+done
+
+# Handling an expected failure without dying: errexit is paused inside try.
+rc=0 # pre-declare so shellcheck sees the assignment
+try rc grep -q "nothing-matches-this" /dev/null
+if [[ "$rc" -ne 0 ]]; then
+  log_warn "Optional check found nothing (exit ${rc}); continuing"
+fi
+
+log_ok "Done"

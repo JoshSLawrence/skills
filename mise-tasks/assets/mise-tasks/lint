@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+#MISE description="Lint every shell task and helper (shellcheck + shfmt)"
+#MISE sources=["mise-tasks/**/*", ".shellcheckrc", ".editorconfig"]
+#USAGE flag "--fix" help="Apply shfmt formatting instead of only checking"
+set -euo pipefail
+
+# shellcheck source=mise-tasks/.lib/common.sh
+source "${MISE_PROJECT_ROOT:?run via 'mise run <task>'}/mise-tasks/.lib/common.sh"
+install_traps
+
+cd "$(project_root)"
+require_cmd shellcheck "Add it under [tools] in mise.toml and run 'mise install'."
+
+# Discover by shebang rather than extension: mise tasks usually have none.
+files=()
+while IFS= read -r f; do
+  if head -n1 "$f" | grep -Eq '^#!.*\b(ba|z)?sh\b'; then
+    files+=("$f")
+  fi
+done < <(find mise-tasks -type f ! -name '*.md')
+
+[[ ${#files[@]} -gt 0 ]] || die "No shell scripts found under mise-tasks/."
+
+log_step "shellcheck (${#files[@]} files)"
+shellcheck -x "${files[@]}"
+log_ok "shellcheck clean"
+
+if command -v shfmt >/dev/null 2>&1; then
+  if [[ "${usage_fix:-false}" == "true" ]]; then
+    log_step "shfmt (rewriting)"
+    shfmt -w "${files[@]}"
+  else
+    log_step "shfmt (check)"
+    shfmt -d "${files[@]}" || die "Formatting differs. Run 'mise run lint --fix' to apply."
+  fi
+  log_ok "shfmt clean"
+else
+  log_warn "shfmt not installed; skipping format check. Add it under [tools] in mise.toml."
+fi
