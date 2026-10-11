@@ -21,42 +21,42 @@ Source: <https://mise.jdx.dev/tasks/task-configuration.html>,
 
 Valid in `[tasks.<name>]` and, for file tasks, as `#MISE key=value`.
 
-| Option         | Meaning                                                    |
-| -------------- | ---------------------------------------------------------- |
-| `description`  | Shown in help, completion, `mise tasks`                    |
-| `run`          | String, array (series), or step array                      |
-| `run_windows`  | Windows variant of `run`                                   |
-| `file`         | External script (path, URL, or `git::` source)             |
-| `alias`        | Alternate name(s); a real task of that name wins           |
-| `depends`      | Prerequisites (parallel, unordered)                        |
-| `depends_post` | Run after the task, even if it failed                      |
-| `wait_for`     | Order after these only if already scheduled                |
-| `env`          | Env vars for this task only (not passed to dependencies)   |
-| `vars`         | Template values (`{{ vars.x }}`), not exported as env      |
-| `tools`        | Tools installed/activated for this task only               |
-| `dir`          | Working dir (default `{{ config_root }}`)                  |
-| `shell`        | Shell for TOML tasks, e.g. `bash -c`                       |
-| `usage`        | Argument spec (see arguments.md)                           |
-| `hide`         | Hide from listings                                         |
-| `timeout`      | e.g. `30s`, `5m`; kills runaway tasks                      |
+| Option         | Meaning                                                  |
+| -------------- | -------------------------------------------------------- |
+| `description`  | Shown in help, completion, `mise tasks`                  |
+| `run`          | String, array (series), or step array                    |
+| `run_windows`  | Windows variant of `run`                                 |
+| `file`         | External script (path, URL, or `git::` source)           |
+| `alias`        | Alternate name(s); a real task of that name wins         |
+| `depends`      | Prerequisites (parallel, unordered)                      |
+| `depends_post` | Run after the task, even if it failed                    |
+| `wait_for`     | Order after these only if already scheduled              |
+| `env`          | Env vars for this task only (not passed to dependencies) |
+| `vars`         | Template values (`{{ vars.x }}`), not exported as env    |
+| `tools`        | Tools installed/activated for this task only             |
+| `dir`          | Working dir (default `{{ config_root }}`)                |
+| `shell`        | Shell for TOML tasks, e.g. `bash -c`                     |
+| `usage`        | Argument spec (see arguments.md)                         |
+| `hide`         | Hide from listings                                       |
+| `timeout`      | e.g. `30s`, `5m`; kills runaway tasks                    |
 
 ## Behavior and I/O properties
 
-| Option         | Meaning                                                    |
-| -------------- | ---------------------------------------------------------- |
-| `confirm`      | Prompt before the task's own `run` (deps run first). Prefer this over hand-rolled prompts for destructive tasks |
-| `raw`          | Connect directly to stdin/stdout/stderr (per command)      |
-| `interactive`  | Exclusive terminal; blocks other tasks                     |
-| `raw_args`     | Pass all args through untouched, including `--help`        |
-| `quiet`        | Hide mise's own output (the echoed command)                |
-| `silent`       | Hide all task output (or `"stdout"` / `"stderr"`)          |
-| `output`       | `prefix`, `interleave`, `keep-order`, `replacing`, `timed`, `silent` |
-| `sources` / `outputs` | Freshness skipping; `!` excludes; `outputs = { auto = true }` tracks without files |
-| `cache`        | (experimental) content-addressed result cache              |
-| `secrets`      | (experimental) secret keys passed to the task, redacted    |
-| `watch`        | Options for `mise watch`                                   |
-| `daemons`      | (experimental) services that must be up first              |
-| `deny_*` / `allow_*` | Sandboxing; see advanced.md                          |
+| Option                | Meaning                                                                                                         |
+| --------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `confirm`             | Prompt before the task's own `run` (deps run first). Prefer this over hand-rolled prompts for destructive tasks |
+| `raw`                 | Connect directly to stdin/stdout/stderr (per command)                                                           |
+| `interactive`         | Exclusive terminal; blocks other tasks                                                                          |
+| `raw_args`            | Pass all args through untouched, including `--help`                                                             |
+| `quiet`               | Hide mise's own output (the echoed command)                                                                     |
+| `silent`              | Hide all task output (or `"stdout"` / `"stderr"`)                                                               |
+| `output`              | `prefix`, `interleave`, `keep-order`, `replacing`, `timed`, `silent`                                            |
+| `sources` / `outputs` | Freshness skipping; `!` excludes; `outputs = { auto = true }` tracks without files                              |
+| `cache`               | (experimental) content-addressed result cache                                                                   |
+| `secrets`             | (experimental) secret keys passed to the task, redacted                                                         |
+| `watch`               | Options for `mise watch`                                                                                        |
+| `daemons`             | (experimental) services that must be up first                                                                   |
+| `deny_*` / `allow_*`  | Sandboxing; see advanced.md                                                                                     |
 
 Stdin is not connected by default. A task that prompts needs
 `interactive = true` or `raw = true`.
@@ -107,16 +107,16 @@ file = "scripts/release.sh"         # external script
 
 ## Environment variables mise provides
 
-| Variable            | Meaning                                              |
-| ------------------- | ---------------------------------------------------- |
-| `MISE_PROJECT_ROOT` | Root of the project defining the task (stable in monorepos) |
-| `MISE_CONFIG_ROOT`  | Directory holding the defining `mise.toml`           |
-| `MISE_ORIGINAL_CWD` | Where the user invoked mise                          |
-| `MISE_TASK_NAME`    | Running task's name                                  |
-| `MISE_TASK_DIR`     | Directory containing the task script                 |
-| `MISE_TASK_FILE`    | Full path to the task script                         |
-| `MISE_TASK_COLOR`   | ANSI prefix color (empty if disabled)                |
-| `MISE_MONOREPO_ROOT`| Monorepo root, only inside a monorepo                |
+| Variable             | Meaning                                                     |
+| -------------------- | ----------------------------------------------------------- |
+| `MISE_PROJECT_ROOT`  | Root of the project defining the task (stable in monorepos) |
+| `MISE_CONFIG_ROOT`   | Directory holding the defining `mise.toml`                  |
+| `MISE_ORIGINAL_CWD`  | Where the user invoked mise                                 |
+| `MISE_TASK_NAME`     | Running task's name                                         |
+| `MISE_TASK_DIR`      | Directory containing the task script                        |
+| `MISE_TASK_FILE`     | Full path to the task script                                |
+| `MISE_TASK_COLOR`    | ANSI prefix color (empty if disabled)                       |
+| `MISE_MONOREPO_ROOT` | Monorepo root, only inside a monorepo                       |
 
 ## Running tasks: flags, output, parallelism
 

@@ -78,13 +78,13 @@ Each arg/flag becomes `usage_<name>` (dashes to underscores:
 `--dry-run` -> `usage_dry_run`). Inherited `usage_*` from a parent
 invocation are cleared, so pass values deliberately via `env=`.
 
-| Case                       | Pattern                                    |
-| -------------------------- | ------------------------------------------ |
-| Has a `default`            | `"${usage_name?}"` (always set; verified)  |
-| Required, must be non-empty| `"${usage_name:?}"`                        |
-| Boolean flag, no default   | `[ "${usage_x:-false}" = "true" ]` (unset unless passed; verified) |
-| Optional string            | `"${usage_x:-}"`                           |
-| Variadic                   | `eval "items=(${usage_items-})"` (value is a shell-quoted string, e.g. `a 'b c'`; verified) |
+| Case                        | Pattern                                                                                     |
+| --------------------------- | ------------------------------------------------------------------------------------------- |
+| Has a `default`             | `"${usage_name?}"` (always set; verified)                                                   |
+| Required, must be non-empty | `"${usage_name:?}"`                                                                         |
+| Boolean flag, no default    | `[ "${usage_x:-false}" = "true" ]` (unset unless passed; verified)                          |
+| Optional string             | `"${usage_x:-}"`                                                                            |
+| Variadic                    | `eval "items=(${usage_items-})"` (value is a shell-quoted string, e.g. `a 'b c'`; verified) |
 
 ## Shared flag sets
 
