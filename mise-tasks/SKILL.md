@@ -135,16 +135,16 @@ Conventions and the reasons behind them:
 `assets/mise-tasks/.lib/common.sh` is tested against mise and shellcheck. It
 provides:
 
-| Helper                                   | Purpose                                      |
-| ---------------------------------------- | -------------------------------------------- |
-| `log_info/ok/warn/error/step/debug`      | Color-coded, stderr; `debug` needs `VERBOSE=1` |
-| `die MSG [CODE]`                         | Log error and exit                           |
-| `require_cmd NAME [HINT]`, `require_env` | Precondition checks with actionable errors   |
+| Helper                                   | Purpose                                          |
+| ---------------------------------------- | ------------------------------------------------ |
+| `log_info/ok/warn/error/step/debug`      | Color-coded, stderr; `debug` needs `VERBOSE=1`   |
+| `die MSG [CODE]`                         | Log error and exit                               |
+| `require_cmd NAME [HINT]`, `require_env` | Precondition checks with actionable errors       |
 | `run CMD...`                             | Echo (shell-quoted) then run; honors `DRY_RUN=1` |
-| `try RC_VAR CMD...`                      | Run with errexit paused; exit status into var |
-| `make_tmpdir VAR`, `track_cleanup PATH`  | Temp paths removed on exit                   |
-| `install_traps`                          | Cleanup on exit; report the failing command  |
-| `project_root`                           | `$MISE_PROJECT_ROOT` or an actionable error  |
+| `try RC_VAR CMD...`                      | Run with errexit paused; exit status into var    |
+| `make_tmpdir VAR`, `track_cleanup PATH`  | Temp paths removed on exit                       |
+| `install_traps`                          | Cleanup on exit; report the failing command      |
+| `project_root`                           | `$MISE_PROJECT_ROOT` or an actionable error      |
 
 Extend the lib when logic repeats across two or more tasks (git helpers,
 retry/backoff, JSON parsing wrappers, confirmation prompts). Keep it
