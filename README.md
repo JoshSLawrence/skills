@@ -9,6 +9,10 @@ skill is a top-level directory containing a `SKILL.md`, plus optional
 - [`mise-tasks`](mise-tasks/SKILL.md) - Author repo scripts and automation as
   [mise](https://mise.jdx.dev/tasks/) tasks, with a shared shell library,
   color-coded logging, argument handling, and shellcheck/shfmt linting.
+- [`mise-tools`](mise-tools/SKILL.md) - Install, pin, lock, and run dev tools
+  and runtimes with [mise](https://mise.jdx.dev/dev-tools/): `[tools]` in
+  `mise.toml`, a committed `mise.lock`, backend choice, CI setup, and running
+  the right version from an agent shell.
 
 ## Installing
 

@@ -1,8 +1,7 @@
 # Template mise.toml for a repo whose automation lives in mise-tasks/.
-# Pin the linters so every contributor and CI lint identically.
+# Pin the linters so every contributor and CI lint identically. Add them
+# with exact versions: mise use --pin shellcheck@latest shfmt@latest
 [tools]
-shellcheck = "latest"
-shfmt = "latest"
 
 # Small or orchestration-only tasks stay here; scripts of any size go in
 # mise-tasks/ as file tasks.

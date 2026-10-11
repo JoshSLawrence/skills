@@ -33,8 +33,10 @@ one you need rather than all of them:
 2. **Choose the format** (see below).
 3. **Scaffold from `assets/`** when the repo has no conventions yet: copy
    `assets/mise-tasks/.lib/common.sh`, `.shellcheckrc`, `.editorconfig`,
-   the `lint` task, and the `[tools]`/`check` entries from `assets/mise.toml`.
-   Use `assets/mise-tasks/example-task` as the starting point for new tasks.
+   the `lint` task, and the `check` entry from `assets/mise.toml`. Add the
+   linters with `mise use --pin shellcheck@latest shfmt@latest` so they land
+   as exact versions (see the `mise-tools` skill). Use
+   `assets/mise-tasks/example-task` as the starting point for new tasks.
 4. **Write the task**, then run it for real: happy path, `--help`, a bad
    argument, and (if it has one) `--dry-run`.
 5. **Lint**: `mise run lint`. Fix findings at the source. Do not add
@@ -187,7 +189,7 @@ See `references/arguments.md` for the full spec syntax.
   them in TOML: `[tasks."test:unit"]`.
 - `mise run 'test:*'` runs wildcards; quote the pattern.
 - Pin linters and tools in `[tools]` so every contributor and CI lint the
-  same way.
+  same way. The `mise-tools` skill covers exact pins and `mise.lock`.
 
 ## Non-shell tasks
 
