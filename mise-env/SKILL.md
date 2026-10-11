@@ -107,8 +107,11 @@ proposal, not a default; respect existing direnv and dotenv setups.
 
 1. **Look first.** Check `mise.toml`, `mise.local.toml`, `mise.*.toml`,
    `.config/mise*`, `.env*`, `.envrc`, `.sops.yaml`, `.miserc.toml`, and
-   `.gitignore`. Run `mise config ls` (which files load) and
-   list variable names and their source files without values (verified):
+   `.gitignore`. In a repo you did not write, read the config before running
+   anything through mise: `mise x`/`mise run` trust it implicitly and then run
+   its `_.source` scripts and `exec()` templates (verified; see Trust below).
+   Then run `mise config ls` (which files load) and list variable names and
+   their source files without values (verified):
 
    ```sh
    mise env --json-extended | jq -r 'to_entries[] | "\(.key)\t\(.value.source // "-")"'
@@ -117,8 +120,6 @@ proposal, not a default; respect existing direnv and dotenv setups.
    `mise set` masks only values marked `redact` or matching `redactions`;
    anything else, including every value loaded from `.env`, prints in full.
    For `.env` files, read the key names (`cut -d= -f1 .env`), not the values.
-   In a repo you did not write, read the config before running
-   `mise x`/`mise run`: they trust it implicitly and then run its `_.source` scripts and `exec()` templates (verified; see Trust below).
 2. **Decide where each value belongs** (table below).
 3. **Write it.** Edit the file, or use `mise set` (targets below). Keep
    secret values off the command line (`--stdin` for agents, `--prompt` for

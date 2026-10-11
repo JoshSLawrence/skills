@@ -115,8 +115,15 @@ user's home directory, so say so before doing it.
   stdout with `sops decrypt` (verified). The `sops` CLI reads
   `SOPS_AGE_KEY_FILE`, not the `MISE_` variables (docs).
 - To add a key non-interactively (verified):
-  `printf '"%s"' "$v" | SOPS_AGE_KEY_FILE=<key> mise --no-env x sops@3.13.3 --
-  sops set --value-stdin .env.production.json '["NEW_KEY"]'`.
+
+  ```sh
+  printf %s "$v" | jq -Rs . |
+    SOPS_AGE_KEY_FILE=<key> mise --no-env x sops@3.13.3 -- \
+    sops set --value-stdin .env.production.json '["NEW_KEY"]'
+  ```
+
+  (`jq -Rs .` JSON-encodes the value, so quotes and backslashes survive;
+  verified.)
   `sops set --help` says this avoids leaking secrets in process listings.
 - **Run sops with `mise --no-env x ...` inside a project whose `[env]`
   already loads an encrypted file.** Verified trap: without a key, mise
