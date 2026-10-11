@@ -39,8 +39,13 @@ Install every skill, or scope to the current project (`.claude/skills/`) by
 dropping `-g`:
 
 ```sh
-npx skills add JoshSLawrence/skills --all -g -a claude-code
+npx skills add JoshSLawrence/skills --skill '*' -g -a claude-code -y
 ```
+
+Avoid `--all` here: it is shorthand for `--skill '*' --agent '*' -y`, so it
+overrides `-a` and installs into every agent the CLI supports (about 50
+directories in your home folder), with errors for agents that have no global
+skills directory (verified with `skills` 1.7.2).
 
 Manage installed skills:
 
