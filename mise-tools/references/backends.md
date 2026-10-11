@@ -14,6 +14,7 @@ mise 2026.10.7 unless marked "docs". Sources:
 - Finding a tool
 - Order of preference
 - Backend notes
+- Go toolchain bypass
 - Declaring runtimes for package backends
 - Migrating `ubi:` to `github:`
 - Tool options
@@ -82,6 +83,16 @@ before using them.
 Verified runs: `mise use github:BurntSushi/ripgrep@14` writes
 `"github:BurntSushi/ripgrep" = "14"` and installs the right platform asset;
 `mise use uv pypi:cowsay` works with no Python declared (uv supplies one).
+
+## Go toolchain bypass
+
+Docs-based, not run here (installing Go was too heavy to test): with
+`go` pinned in mise, a `go` or `toolchain` line in `go.mod` newer than the pin
+makes Go itself download that toolchain (its default `GOTOOLCHAIN=auto`
+behavior), bypassing mise. Keep the `go.mod` line at or below the pinned
+version. `GOTOOLCHAIN=local` forces the local toolchain, but setting it in
+mise needs `[env]`, which makes `mise.toml` require trust; weigh that
+trade-off, or export it in CI and docs instead.
 
 ## Declaring runtimes for package backends
 
