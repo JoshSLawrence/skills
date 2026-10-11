@@ -101,7 +101,11 @@ Rules of thumb:
 - `mise use tool` writes `"latest"` by default. In shared config, write an
   exact version instead. Bare prefixes and `latest` do not belong there.
   - Newest release: `mise use --pin tool@latest`.
-  - Newest within a major: `mise use tool@"$(mise latest tool@24)"`.
+  - Newest within a major:
+    `mise use tool@"$(mise ls-remote tool 24 | tail -1)"`.
+    Check the result is a full `X.Y.Z` before committing: `mise latest` is
+    the wrong tool here because it prefers a release named exactly like the
+    prefix (`mise latest jq@1.7` gives `1.7`, `ls-remote` ends at `1.7.1`).
   - Trap: `mise use --pin tool@24` writes the *installed* match of `24`, not
     the newest. Verified: with jq 1.7.1 installed, `mise use --pin jq@1`
     wrote `"1.7.1"` while `mise latest jq@1` said 1.8.2. Only `@latest`
@@ -151,12 +155,10 @@ else
 fi
 ```
 
-Without `gh`, proceed but warn the user that the anonymous limit is 60
-requests per hour per IP, shared with everything on that network, and
-recommend `gh auth login` or setting `MISE_GITHUB_TOKEN`. Then check that the
-summary shows no "skipped" entries and that every tool has `platforms.<p>`
-tables. See `references/backends.md` for the permanent `credential_command`
-option, which changes global config and is the user's call.
+Without `gh`, proceed but warn the user. Then check that the summary shows no
+"skipped" entries and that every tool has `platforms.<p>` tables. The full
+procedure (warning text, `credential_command`) is in
+`references/versions-and-lockfile.md`.
 
 Why not `[settings] lockfile = true` in `mise.toml`? Any `[settings]` table
 makes the file require trust, and an untrusted config makes read-only commands
@@ -230,9 +232,10 @@ Therefore:
   setup, honors the config in the current directory, and installs missing
   tools.
 - **For several commands at once**, `mise x -c 'cmd1 && cmd2'` runs a shell
-  string under one resolved environment and does not depend on which shell
-  the harness uses (verified: `mise x -c 'jq --version && shfmt --version'`
-  ran both from the project pins).
+  string under one resolved environment. It runs the string with `$SHELL`
+  (verified: `mise x -c 'echo $0'` printed `/bin/zsh`), so keep it POSIX.
+  Verified: `mise x -c 'jq --version && shfmt --version'` ran both from the
+  project pins.
 - **Alternatively activate once** at the top of the same call:
 
   ```sh

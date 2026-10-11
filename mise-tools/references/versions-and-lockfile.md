@@ -74,7 +74,14 @@ installed, `mise use --pin jq@1` wrote `"1.7.1"`). Only `@latest` checks the
 remote. So:
 
 - Newest release: `mise use --pin tool@latest`.
-- Newest within a major: `mise use tool@"$(mise latest tool@24)"`.
+- Newest within a major: `mise use tool@"$(mise ls-remote tool 24 | tail -1)"`.
+  Confirm it is a full `X.Y.Z` before committing. Do not use `mise latest`
+  here: it prefers a release named exactly like the prefix, so `mise latest
+  jq@1.7` gives `1.7` and `mise use jq@"$(mise latest jq@1.7)"` writes
+  `jq = "1.7"`, while `mise ls-remote jq 1.7 | tail -1` gives `1.7.1`.
+  `ls-remote` honors `minimum_release_age` (verified: with
+  `MISE_MINIMUM_RELEASE_AGE=2025-08-01` it warned "1 newer jq release hidden"
+  and ended at an older version).
 - Convert an existing `latest` entry without changing what runs:
   `mise use tool@"$(mise current tool)"` (verified: `mise current jq` prints
   `1.8.2`).
@@ -167,16 +174,9 @@ maintenance. Verified: with the setting unset and a `mise.lock` present,
   403 lines and then `Updated 14 platform entries (7 skipped)`, and the
   `github:` tool had no `platforms.*` tables. So:
 
-  1. Check that `gh` is installed and signed in, and use its token for this
-     one command:
-
-     ```sh
-     if command -v gh >/dev/null 2>&1 && gh auth token >/dev/null 2>&1; then
-       MISE_GITHUB_TOKEN="$(gh auth token)" mise lock
-     else
-       mise lock
-     fi
-     ```
+  1. Check that `gh` is installed and signed in (`command -v gh` and a
+     successful `gh auth token`), and use its token for this one command. The
+     exact command block is in `SKILL.md` ("The lockfile in practice").
 
   2. Without `gh`, proceed but warn the user that the anonymous limit is 60
      requests per hour per IP, shared with everything on that network, and
@@ -260,7 +260,7 @@ Verified behavior:
   `MISE_SAFE=1` (docs).
 - `mise upgrade --bump` on an exact pin jumps to the newest release and can
   cross majors (for node, onto a non-LTS line). To stay within a major, use
-  `mise use tool@"$(mise latest tool@<major>)"` instead.
+  `mise use tool@"$(mise ls-remote tool <major> | tail -1)"` instead.
 - Other flags: `-i` interactive picker, `--local`/`--global` scope,
   `-x tool` exclude.
 

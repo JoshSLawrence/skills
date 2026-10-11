@@ -53,7 +53,8 @@ jobs:
   puts shims on PATH, and exports project `[env]`. When a `mise.lock` exists it
   installs with `--locked`, so a tool missing from the lock (or a platform the
   lock lacks) fails the job instead of resolving fresh. Re-run
-  `mise lock --platform ...` locally to cover every runner OS and commit it.
+  `mise lock` locally (the default platforms cover all GitHub-hosted
+  runners) and commit it.
 - Useful inputs: `version` (pin the mise version itself), `install`,
   `install_args`, `cache`, `cache_save`, `cache_key_prefix`,
   `working_directory`, `github_token`, `persist_github_token`,
