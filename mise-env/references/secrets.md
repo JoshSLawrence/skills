@@ -46,25 +46,47 @@ every child process can read them, and `mise env` prints them.
 STRIPE_KEY = "sk_test_..."
 ```
 
+Put `redactions = ["*_KEY", "*_TOKEN"]` in the committed `mise.toml` so
+personal values are masked too (verified).
+
 Or keep `.env` untracked and load it from the committed config with
 `_.file = ".env"`; a missing file is skipped (verified). Pair either with a
 committed placeholder (`.env.example`, or a README line) and, for a task that
 cannot work without it, task-level `required` (SKILL.md, `[env]` essentials).
-Write values with `mise set --env local --stdin KEY` or `--prompt` so they
-stay out of shell history.
+Write values with `mise set --env local --stdin KEY` (agents) or
+`--prompt` (users; typed input is visible and masked only with
+`--age-encrypt`) so they stay out of shell history.
 
 ## sops-encrypted files (end to end)
 
 Flow, with nothing installed globally:
 
 ```sh
-mise x age@1.3.2 -- age-keygen -o ~/.config/mise/age.txt
-mise x sops@3.13.3 -- sops encrypt -i --age "age1..." .env.json
+mise --no-env x age@1.3.2 -- age-keygen -o ~/.config/mise/age.txt
+tmp=$(mktemp -d)
+# write $tmp/plain.json with the secrets, outside the repo
+mise --no-env x sops@3.13.3 -- sops encrypt --age "age1..." --filename-override .env.production.json --output .env.production.json "$tmp/plain.json"
+rm -rf "$tmp"
 ```
 
+If `~/.config/mise/age.txt` already exists, reuse it (`age-keygen -y
+~/.config/mise/age.txt` prints its public key); otherwise `mkdir -p
+~/.config/mise` first. Verified: `-o` fails on an existing file and on a
+missing directory.
+
+Never write plaintext at the committed path and encrypt in place: if the
+encrypt step fails, a plaintext secret file is left there to be committed.
+Encrypting from a temp directory outside the repo into the final path leaves
+nothing behind on failure (`--filename-override` and `--output` verified with
+sops 3.13.3).
+
+Load the encrypted file from a scoped place, never from `mise.toml` (see
+"Keeping a missing key from breaking everything"):
+
 ```toml
+# mise.production.toml (or a task's env); never mise.toml, see below
 [env]
-_.file = { path = ".env.json", redact = true }
+_.file = { path = ".env.production.json", redact = true }
 ```
 
 Verified in a scratch directory with the key written to a scratch file and
@@ -82,16 +104,27 @@ user's home directory, so say so before doing it.
   `ENC[AES256_GCM,...]` plus junk variables such as
   `sops_age__list_0__map_enc`. Use `.env.json` or `.env.yaml`.
 - Before committing, confirm the file is encrypted:
-  `mise x sops@3.13.3 -- sops filestatus .env.json` prints
-  `{"encrypted":true}` (verified; it exits 0 either way, so read the output).
-- Edit later with `SOPS_AGE_KEY_FILE=<key> mise x sops -- sops .env.json`;
-  decrypt to stdout with `sops decrypt` (verified). The `sops` CLI reads
+  `mise --no-env x sops@3.13.3 -- sops filestatus .env.production.json`
+  prints `{"encrypted":true}` (verified; it exits 0 either way, so read the
+  output). Without `--no-env`, filestatus fails with "failed to decrypt sops
+  file" when no key is present (verified).
+- Edit later with
+  `SOPS_AGE_KEY_FILE=<key> mise --no-env x sops@3.13.3 -- sops
+  .env.production.json`
+  (interactive: it opens `$EDITOR`, so agents cannot use it); decrypt to
+  stdout with `sops decrypt` (verified). The `sops` CLI reads
   `SOPS_AGE_KEY_FILE`, not the `MISE_` variables (docs).
+- To add a key non-interactively (verified):
+  `printf '"%s"' "$v" | SOPS_AGE_KEY_FILE=<key> mise --no-env x sops@3.13.3 --
+  sops set --value-stdin .env.production.json '["NEW_KEY"]'`.
+  `sops set --help` says this avoids leaking secrets in process listings.
 - **Run sops with `mise --no-env x ...` inside a project whose `[env]`
   already loads an encrypted file.** Verified trap: without a key, mise
   failed to decrypt the existing file before running sops, so
   `sops encrypt -i` never ran and the new file **stayed plaintext**.
-  `mise --no-env x sops@3.13.3 -- sops encrypt -i ...` worked.
+  `mise --no-env x sops@3.13.3 -- sops encrypt -i ...` worked. `--no-env` is
+  not a safety mode: in an untrusted directory it ran no project code but
+  still recorded the directory as trusted (verified).
 - Pin sops and age in `[tools]` if the team edits secrets often (the
   `mise-tools` skill covers exact pins); otherwise `mise x` one-offs are
   enough.

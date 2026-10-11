@@ -1,6 +1,6 @@
 ---
 name: mise-env
-description: Set project environment variables with mise, even when the user never says "mise" - [env] in mise.toml, .env and dotenv files, extra PATH entries, per-environment config (mise.staging.toml, MISE_ENV), secrets kept out of the repo (sops or age encryption, redaction in logs) and Python venvs that activate automatically. Use this skill as soon as a user wants to add or change an env var, load a .env file, stop committing secrets or API keys, give DATABASE_URL or an API URL different values for dev, staging, prod and CI, activate the venv automatically, replace direnv or an .envrc, or debug why a variable is missing or wrong, and whenever a mise.toml has an [env] section or per-environment mise.*.toml files. Offer it as an option in repos that use direnv or a plain .env, and prefer it over ad hoc export lines in repos that already use mise. Don't use it for installing or pinning tools, shims, shell activation or `mise x` (that's the mise-tools skill) or for writing tasks and scripts (that's the mise-tasks skill).
+description: Set project environment variables with mise, even when the user never says "mise" - [env] in mise.toml, .env and dotenv files, extra PATH entries, per-environment config (mise.staging.toml, MISE_ENV), secrets kept out of the repo (sops or age encryption, log redaction) and auto-activated Python venvs. Use this skill as soon as a user wants to add or change an env var, load a .env file, stop committing secrets or API keys, give DATABASE_URL or an API URL different values for dev, staging, prod and CI, activate the venv automatically, replace direnv or an .envrc, or debug why a variable is missing or wrong, and whenever a mise.toml has an [env] section or per-environment mise.*.toml files. Offer it alongside an existing direnv or plain .env setup; prefer it over ad hoc exports in repos that use mise. Don't use it for installing or pinning tools, shims, shell activation or `mise x` (that's the mise-tools skill) or for writing tasks and scripts (that's the mise-tasks skill).
 ---
 
 <!-- markdownlint-disable MD013 -->
@@ -71,7 +71,9 @@ The user will rarely say "mise" or "`[env]`". In a repo that uses mise:
   values into `mise.toml`, so there is one source of truth.
 - **A secret pasted into config, "don't commit the API key"** -> move it to
   `mise.local.toml` (gitignored) or an encrypted file, and mark it
-  `redact = true`.
+  `redact = true`. If it was ever committed (`git log -S '<first chars>'
+  --oneline`, or `git log -- <file>`), tell the user it is compromised and
+  must be rotated; moving it does not remove it from history.
 - **"DATABASE_URL per environment", "staging vs prod config"** ->
   `mise.staging.toml` / `mise.production.toml`, selected with `-E`.
 - **"Activate the venv automatically", "I keep forgetting to source
@@ -106,19 +108,29 @@ proposal, not a default; respect existing direnv and dotenv setups.
 1. **Look first.** Check `mise.toml`, `mise.local.toml`, `mise.*.toml`,
    `.config/mise*`, `.env*`, `.envrc`, `.sops.yaml`, `.miserc.toml`, and
    `.gitignore`. Run `mise config ls` (which files load) and
-   `mise set` (each variable, its source file, secrets shown as
-   `[redacted]`; verified). In a repo you did not write, read the config
-   before running `mise x`/`mise run`: they trust it implicitly and then run
-   its `_.source` scripts and `exec()` templates (verified; see Trust below).
+   list variable names and their source files without values (verified):
+
+   ```sh
+   mise env --json-extended | jq -r 'to_entries[] | "\(.key)\t\(.value.source // "-")"'
+   ```
+
+   `mise set` masks only values marked `redact` or matching `redactions`;
+   anything else, including every value loaded from `.env`, prints in full.
+   For `.env` files, read the key names (`cut -d= -f1 .env`), not the values.
+   In a repo you did not write, read the config before running
+   `mise x`/`mise run`: they trust it implicitly and then run its `_.source` scripts and `exec()` templates (verified; see Trust below).
 2. **Decide where each value belongs** (table below).
 3. **Write it.** Edit the file, or use `mise set` (targets below). Keep
-   secret values off the command line (`--prompt`, `--stdin`).
+   secret values off the command line (`--stdin` for agents, `--prompt` for
+   users; its input is visible).
 4. **Ignore personal files.** Add `mise.local.toml`, `mise.*.local.toml`,
    `.env`, and any key file to `.gitignore`; nothing does it for you (docs).
    Commit a `.env.example` with placeholder values if the project uses `.env`.
-5. **Verify without printing secrets.** `mise env --json` for non-secret
-   values, `mise x -- printenv NAME` for one value, and for secrets only
-   presence: `mise x -- sh -c 'test -n "$API_TOKEN" && echo set'`. Check
+   Confirm the files are not already tracked: `git ls-files mise.local.toml
+   .env` should print nothing; if it does, `git rm --cached` them.
+5. **Verify without printing secrets.** `mise x -- printenv NAME` for one
+   non-secret value, and for secrets only presence: `mise x -- sh -c 'test -n
+   "$API_TOKEN" && echo set'`. Check
    `mise config ls` when an environment file is involved.
 
 ## Where a value belongs
@@ -181,17 +193,24 @@ Verified behavior:
 
 `mise set` and `mise unset` edit `[env]`. Verified write targets:
 
-| Command                                        | Writes                                                |
-| ---------------------------------------------- | ----------------------------------------------------- |
-| `mise set KEY=v`                               | `mise.toml` (even when `mise.local.toml` exists)      |
-| `mise set --env local KEY=v`                   | `mise.local.toml`                                     |
-| `mise set --env staging KEY=v` (or `-E`)       | `mise.staging.toml` (created if missing)              |
-| `mise -E staging set KEY=v`                    | `mise.toml`: a global `-E` only selects files         |
-| `mise set --file <path> KEY=v`                 | That file                                             |
-| `printf %s "$v" \| mise set --stdin KEY`       | Same targets; value kept off the command line         |
-| `mise set` / `mise set KEY` / `mise unset KEY` | List (redacted) / print one (**unredacted**) / remove |
+| Command                                        | Writes                                                 |
+| ---------------------------------------------- | ------------------------------------------------------ |
+| `mise set KEY=v`                               | `mise.toml` if it exists (even with `mise.local.toml`) |
+| `mise set --env local KEY=v`                   | `mise.local.toml`                                      |
+| `mise set --env staging KEY=v` (or `-E`)       | `mise.staging.toml` (created if missing)               |
+| `mise -E staging set KEY=v`                    | Same as `mise set KEY=v`: a global `-E` only selects   |
+| `mise set --file <path> KEY=v`                 | That file                                              |
+| `printf %s "$v" \| mise set --stdin KEY`       | Same targets; value kept off the command line          |
+| `mise set` / `mise set KEY` / `mise unset KEY` | List (redacted) / print one (**unredacted**) / remove  |
 
-`mise set` writes the file and trusts it (docs, and mise-tools). Never pass a
+With no `mise.toml`, both `mise set` and `mise -E staging set` write to the
+project config that does exist (`mise.local.toml`, `.config/mise.toml`), or
+create a new `mise.toml` (verified). Pass `--file` or `--env` whenever the
+target matters.
+
+`mise set` writes the file and trusts it (docs, and mise-tools); in a repo
+whose existing config is untrusted it fails with "not trusted" instead
+(verified). Never pass a
 real secret as `KEY=value` on the command line: it lands in shell history and,
 by default, in the committed `mise.toml`.
 
@@ -232,7 +251,7 @@ NODE_VERSION = { value = "{{ tools.node.version }}", tools = true }
 - `{{ config_root }}` is the project root; `{{ cwd }}` is wherever mise was
   run, so prefer `config_root` for paths (verified).
 - Referencing a variable defined *later* is a hard error
-  (`Field 'LATER' is not defined`), not an empty string. Order entries, or
+  (``Field `LATER` is not defined``), not an empty string. Order entries, or
   use `{{ env.X | default(value='') }}` (verified).
 - `exec()` runs on every mise invocation (verified: three `mise x` runs, three
   executions). Cache it with `cache_key`/`cache_duration` (verified: one
@@ -295,8 +314,8 @@ command's environment (verified: `printenv FOO` was empty in a project setting
 - Enter/leave hooks never fire in an agent shell; do not rely on them for
   anything CI or agents need (`references/hooks-and-direnv.md`).
 - Check what a command received with `mise x -- printenv NAME` for non-secret
-  values and `test -n` for secrets. `mise env --json-extended` shows each
-  value's source file (verified).
+  values and `test -n` for secrets. To see names and source files without
+  values, use the command in Workflow step 1 (verified).
 
 How activation, shims, and `mise x` work in general is in the `mise-tools`
 skill.
@@ -335,14 +354,15 @@ Trust is covered in depth by the `mise-tools` skill
 - [ ] `mise.local.toml`, `mise.*.local.toml`, `.env`, and key files are in
       `.gitignore`; a `.env.example` exists if the project uses `.env`
 - [ ] Encrypted files are scoped so a missing key does not break `mise ls`,
-      `mise install`, or unrelated tasks; `sops filestatus` shows
-      `{"encrypted":true}` before commit
+      `mise install`, or unrelated tasks; `mise --no-env x sops@3.13.3 --
+      sops filestatus <file>` shows `{"encrypted":true}` before commit
 - [ ] `required` is on the task that needs the value, not top-level, unless
       every command needs it
 - [ ] Entries are ordered so each template only references earlier values;
       tool-derived values use `tools = true`
 - [ ] Verified with `mise x -- printenv NAME` (or `test -n` for secrets) and,
       for environments, `mise -E <env> config ls`
+- [ ] Any secret found in git history was reported to the user for rotation
 - [ ] No secret printed into the transcript (`mise env`, `mise set KEY`)
 - [ ] No `mise trust`, global config change, or shell rc edit without the
       user's say-so

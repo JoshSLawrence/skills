@@ -57,7 +57,9 @@ Verified behavior:
   `unsupported json value: Object {"x": Number(1)}`.
 - **A missing file is skipped without a message**, so `_.file = ".env"` is
   safe for an optional, untracked file. The flip side: a typo in the path is
-  silent too. Check with `mise set` that the variables arrived.
+  silent too. Check that the variables arrived by listing names and sources, not
+  values (the `mise env --json-extended | jq` command in SKILL.md, Workflow
+  step 1).
 - Globs work: `.env.g*` loaded both `.env.g1` and `.env.g2`.
 - **File values replace the shell's.** With `DOT_A=shell` exported and
   `DOT_A=plain` in `.env`, the command saw `plain`. If a developer must be
@@ -66,7 +68,10 @@ Verified behavior:
   quotes (literal: `'single $NOT'` stayed as written) all worked. `${KEY}`
   referenced an earlier key in the same file, and `$HOME` expanded from the
   environment. `$(...)` and backticks were **not** executed; they stayed
-  literal text.
+  literal text. A dotenv file does not see earlier `[env]` values unless the
+  entry sets `expand = true`; without it a reference to one silently expands
+  to empty (`USES_EARLIER=${EARLY}` gave an empty string, and `"early"` with
+  `expand = true`).
 - JSON/YAML/TOML values are literal (`"$BASE"` stayed `$BASE`) unless the
   entry sets `expand = true`, which expanded it from an earlier `[env]` value.
 - sops-encrypted `.json`, `.yaml`, and `.toml` files are decrypted on load;
@@ -79,8 +84,11 @@ source of truth and point `_.file` at it rather than copying values into
 ## `_.path`
 
 ```toml
+[tools]
+jq = "1.8.2"
+
 [env]
-_.path = ["bin", "{{ config_root }}/node_modules/.bin", "~/.local/share/mytool/bin"]
+_.path = ["bin", "{{ config_root }}/tools/bin", "~/fake-home-bin", "./rel"]
 ```
 
 Verified, running `mise x -- printenv PATH` from a subdirectory:

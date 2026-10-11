@@ -28,7 +28,9 @@ not set any variable for the app; define those in the environment file:
 [env]
 APP_ENV = "development"
 API_URL = "http://localhost:8080"
+```
 
+```toml
 # mise.staging.toml
 [env]
 APP_ENV = "staging"

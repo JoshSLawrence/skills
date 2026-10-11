@@ -91,8 +91,10 @@ environment on `cd` and disagree about `PATH`. Map each `.envrc` line:
 
 Steps:
 
-1. Write the mise config, then compare `mise env --json` (non-secret values)
-   with what direnv exported.
+1. Write the mise config, then compare variable names and
+   sources (the `mise env --json-extended | jq` command in SKILL.md,
+   Workflow step 1), and values only for non-secret ones, with what direnv
+   exported.
 2. Delete the moved lines or the whole `.envrc` in the same change, and update
    README/CONTRIBUTING setup steps.
 3. Ask before touching the user's shell rc: removing `eval "$(direnv hook
