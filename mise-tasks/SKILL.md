@@ -126,9 +126,10 @@ Conventions and the reasons behind them:
   the result.
 - **Idempotent and re-runnable** where practical; use `sources`/`outputs`
   for build-like tasks so mise skips up-to-date work.
-- **Secrets never live in `mise.toml` or scripts.** Read them from the
-  environment and fail with a message telling the user where to set them
-  (`require_env NAME "hint"`).
+- **Plaintext secrets never live in `mise.toml` or scripts.** Read them from
+  the environment and fail with a message telling the user where to set them
+  (`require_env NAME "hint"`). Where values and secrets come from (local
+  files, encrypted files, per-environment config) is the `mise-env` skill.
 
 ## The shared library (`.lib/common.sh`)
 

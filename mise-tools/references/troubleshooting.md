@@ -100,7 +100,7 @@ contributors and CI need updating too.
   `mise use`; `asdf set -u`/`global` -> `mise use -g`; `asdf list all` ->
   `mise ls-remote`; `asdf current` -> `mise ls --current`; `asdf exec` ->
   `mise exec --`; `asdf plugin add` is usually unnecessary. `mise set` sets
-  env vars, not versions.
+  env vars, not versions (see the `mise-env` skill).
 - A shared `.tool-versions` that mise reads must hold exact versions (no
   `prefix:`, `sub-`, or backend ids).
 

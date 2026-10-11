@@ -45,6 +45,9 @@ how to isolate experiments.
   | Wanted everywhere, not tied to a repo   | `mise use -g`               |
   | Only for CI or a special environment    | `mise.<env>.toml`           |
 
+  Environment variables per environment (`[env]` in `mise.<env>.toml`,
+  `MISE_ENV`) are covered by the `mise-env` skill.
+
 - Add `mise.local.toml`, `mise.local.lock`, and `.mise/locks/mise.local/` to
   `.gitignore`; nothing does it for you (docs).
 - `min_version = "2026.1.0"` at the top of `mise.toml` fails fast on an old
