@@ -187,7 +187,7 @@ See `references/arguments.md` for the full spec syntax.
   them in TOML: `[tasks."test:unit"]`.
 - `mise run 'test:*'` runs wildcards; quote the pattern.
 - Pin linters and tools in `[tools]` so every contributor and CI lint the
-  same way.
+  same way. The `mise-tools` skill covers exact pins and `mise.lock`.
 
 ## Non-shell tasks
 
