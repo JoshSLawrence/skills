@@ -1,6 +1,6 @@
 ---
 name: mise-tools
-description: Use this skill to get the right version of a dev CLI, linter or runtime wherever work runs, even when the tool is a side detail and nobody says "mise". Two cases are easy to miss. (1) mid-task, a CLI is missing (jq, yq, gh, terraform) and the user won't brew or apt it, so run it with `mise x` instead of working around it; (2) a new CI job runs linters or validators (actionlint, yamllint, hadolint), so install them from mise.toml via jdx/mise-action. Also use it for installing CLIs, "command not found", wrong versions, brew/apt/curl steps in onboarding docs, version drift between teammates and CI, pinning or bumping mise.toml, .tool-versions or mise.lock, choosing a backend, migrating from asdf, nvm, pyenv or tfenv, and mise trust errors. Not for writing tasks or scripts (mise-tasks), env vars (mise-env), library dependencies (npm install, cargo add, go mod), or CI that only builds or pushes images.
+description: Use this skill to get the right version of a dev CLI, linter or runtime wherever work runs, even when the tool is a side detail and nobody says "mise". Two cases are easy to miss. (1) mid-task, a CLI is missing (jq, yq, gh, terraform) and the user won't brew or apt it, so run it with `mise x` instead of working around it; (2) a new CI job runs linters or validators (actionlint, yamllint, hadolint), so install them from mise.toml via jdx/mise-action. Also use it for installing CLIs, "command not found", wrong versions, brew/apt/curl steps in onboarding docs, version drift between teammates and CI, pinning or bumping mise.toml, .tool-versions or mise.lock, choosing a backend, migrating from asdf, nvm, pyenv or tfenv, and mise trust errors. Not for writing tasks or scripts (mise-tasks), env vars, project secrets or venvs (mise-env), library dependencies (npm install, cargo add, go mod), or CI that only builds or pushes images.
 ---
 
 <!-- markdownlint-disable MD013 -->
@@ -36,7 +36,8 @@ you need rather than all of them:
   system installs, OCI, install layout, lazy tools
 
 Out of scope here: writing tasks (use the `mise-tasks` skill) and `[env]`
-configuration (a separate topic that this skill does not cover).
+configuration, meaning environment variables, `.env` files, secrets, config
+environments, and Python venvs (use the `mise-env` skill).
 
 ## When to use mise (and when not to)
 
@@ -369,10 +370,10 @@ the whole entry, options included.
 - `MISE_<TOOL>_VERSION=1.2.3` overrides config for one command, handy for
   trying a version without editing files.
 
-Env configuration is outside this skill, with two tool-adjacent exceptions
-worth knowing exist: `_.path` (add directories to PATH) and
-`_.python.venv` (auto-activate a Python virtualenv; docs only). Both live in
-the `[env]` table, which requires trust like any non-`[tools]` content.
+Two tool-adjacent settings live in `[env]`: `_.path` (extra PATH entries,
+which go ahead of tool bin dirs) and `_.python.venv` (a virtualenv mise
+creates and activates). `[env]` requires trust like any non-`[tools]`
+content; the `mise-env` skill covers both and the rest of `[env]`.
 
 ## CI in brief
 

@@ -6,6 +6,10 @@ skill is a top-level directory containing a `SKILL.md`, plus optional
 
 ## Inventory
 
+- [`mise-env`](mise-env/SKILL.md) - Set project environment variables with
+  [mise](https://mise.jdx.dev/environments/): `[env]` in `mise.toml`, `.env`
+  files, per-environment config with `MISE_ENV`, sops/age-encrypted secrets
+  and redaction, and Python venvs that activate automatically.
 - [`mise-tasks`](mise-tasks/SKILL.md) - Author repo scripts and automation as
   [mise](https://mise.jdx.dev/tasks/) tasks, with a shared shell library,
   color-coded logging, argument handling, and shellcheck/shfmt linting.

@@ -50,7 +50,8 @@ jobs:
 - **Least privilege:** `permissions: contents: read` at the top, widened per
   job only when a step needs it.
 - The action installs mise and the tools from `mise.toml`, caches installs,
-  puts shims on PATH, and exports project `[env]`. When a `mise.lock` exists it
+  puts shims on PATH, and exports project `[env]` (masking values marked for
+  redaction; see the `mise-env` skill). When a `mise.lock` exists it
   installs with `--locked`, so a tool missing from the lock (or a platform the
   lock lacks) fails the job instead of resolving fresh. Re-run
   `mise lock` locally (the default platforms cover the common GitHub-hosted
