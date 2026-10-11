@@ -59,23 +59,39 @@ Consequences, all verified:
 
 ## What `mise use` writes
 
-| Command                    | Written to `mise.toml` |
-| -------------------------- | ---------------------- |
-| `mise use jq`              | `jq = "latest"`        |
-| `mise use jq@1`            | `jq = "1"`             |
-| `mise use --pin jq@1`      | `jq = "1.8.2"`         |
-| `mise use --pin jq@latest` | `jq = "1.8.2"`         |
-| `mise use jq@1.8.1`        | `jq = "1.8.1"`         |
+| Command                    | Written to `mise.toml`                                                                              |
+| -------------------------- | --------------------------------------------------------------------------------------------------- |
+| `mise use jq`              | `jq = "latest"`                                                                                     |
+| `mise use jq@1`            | `jq = "1"`                                                                                          |
+| `mise use --pin jq@latest` | `jq = "1.8.2"` (newest)                                                                             |
+| `mise use --pin jq@1`      | the **installed** match of `1` (`"1.7.1"` if that is installed, though `mise latest jq@1` is 1.8.2) |
+| `mise use jq@1.8.1`        | `jq = "1.8.1"`                                                                                      |
 
 `mise use` installs immediately and records the request. For shared config
-always use `--pin` (or type the exact version). `pin = true` in settings makes
-`--pin` the default (docs); for a team, prefer the explicit flag in
-instructions so it does not depend on anyone's settings.
+write an exact version. `--pin` on a prefix resolves like any other request:
+installed versions win over the remote list (verified: with jq 1.7.1
+installed, `mise use --pin jq@1` wrote `"1.7.1"`). Only `@latest` checks the
+remote. So:
+
+- Newest release: `mise use --pin tool@latest`.
+- Newest within a major: `mise use tool@"$(mise latest tool@24)"`.
+- Convert an existing `latest` entry without changing what runs:
+  `mise use tool@"$(mise current tool)"` (verified: `mise current jq` prints
+  `1.8.2`).
+
+`pin = true` in settings makes `--pin` the default (docs); for a team, spell
+out the exact version or flag in instructions so it does not depend on
+anyone's settings.
 
 Where it writes: the lowest-precedence file in the nearest directory that has
 mise config (so `mise.toml`, not `mise.local.toml`); from a subdirectory with
 no config, the parent's file; a new `mise.toml` in the current directory if
-there is none. In `$HOME` it writes global config.
+there is none. In `$HOME` it writes global config. **Gotcha (verified):** if
+`.tool-versions` is the only config in the directory, `mise use --pin
+shfmt@3.10.0` appends to `.tool-versions`, where tools are never locked. Use
+`mise use --path mise.toml ...` (verified: it creates `mise.toml` beside the
+`.tool-versions`) or convert first with `mise generate config --tool-versions
+.tool-versions`.
 
 | Flag                | Effect                                          |
 | ------------------- | ----------------------------------------------- |
@@ -115,15 +131,18 @@ maintenance. Verified: with the setting unset and a `mise.lock` present,
 - `mise lock` resolves and writes entries; it installs nothing. Without
   `--platform` a new file covers `linux-arm64`, `linux-arm64-musl`,
   `linux-x64`, `linux-x64-musl`, `macos-arm64`, `macos-x64`, `windows-x64`.
-  Restrict with `--platform linux-x64,macos-arm64`.
-- Entries added later by `mise use`/`install` cover the platforms already in
-  the lockfile (verified: a lock created for `macos-arm64` alone got a
-  `macos-arm64`-only entry for a new tool). When CI runs a platform the lock
-  lacks, `--locked` installs fail, so re-run `mise lock --platform ...`.
+  Prefer this default set. `--platform` restrictions cause churn: with a
+  `linux-x64`-only lock, a plain `mise install` on macOS added `macos-arm64`
+  entries (verified), so contributors' diffs keep changing the file. Use
+  `--platform` only when a narrow set is genuinely wanted.
+- Entries added by `mise use` cover the platforms already in the lockfile
+  (verified: a lock created for `macos-arm64` alone got a `macos-arm64`-only
+  entry for a new tool). When CI runs a platform the lock lacks, `--locked`
+  installs fail, so re-run `mise lock` (or with `--platform`).
 - One lockfile per config file: `mise.toml` -> `mise.lock`,
   `mise.<env>.toml` -> `mise.<env>.lock`, `mise.local.toml` ->
-  `mise.local.lock` (gitignore it). `mise lock --global` writes the global
-  one.
+  `mise.local.lock` (add it to `.gitignore`). `mise lock --global` writes the
+  global one.
 - Format (`lockfile_version = 3`):
 
   ```toml
@@ -142,9 +161,33 @@ maintenance. Verified: with the setting unset and a `mise.lock` present,
   matches on it. Do not hand-edit entries; regenerate them.
 - Commit `mise.lock` and, when it exists, `.mise/locks/` (npm and pypi
   dependency-graph sidecars; `mise lock --sidecars` lists them) (docs).
-- `mise lock` calls the GitHub API per platform. Set a token
-  (`MISE_GITHUB_TOKEN`) before locking many tools, or you may hit the
-  anonymous 60-requests-per-hour limit (see `backends.md`).
+- **Rate limits produce a silently incomplete lock.** In testing only
+  `github:` tools needed the GitHub API while locking; aqua tools locked fully
+  with no quota. A rate-limited `mise lock` still exits 0: a reviewer saw WARN
+  403 lines and then `Updated 14 platform entries (7 skipped)`, and the
+  `github:` tool had no `platforms.*` tables. So:
+
+  1. Check that `gh` is installed and signed in, and use its token for this
+     one command:
+
+     ```sh
+     if command -v gh >/dev/null 2>&1 && gh auth token >/dev/null 2>&1; then
+       MISE_GITHUB_TOKEN="$(gh auth token)" mise lock
+     else
+       mise lock
+     fi
+     ```
+
+  2. Without `gh`, proceed but warn the user that the anonymous limit is 60
+     requests per hour per IP, shared with everything on that network, and
+     recommend `gh auth login` or setting `MISE_GITHUB_TOKEN`. Offer the
+     permanent global `credential_command` (`backends.md`); it changes global
+     config, so it is the user's call.
+  3. Afterwards read the summary for "skipped" and confirm every tool has
+     `platforms.<p>` tables for each platform you need, for example with
+     `grep -c 'platforms\.' mise.lock` against the number of tools times
+     platforms, or by reading `mise.lock`. Re-run once the token or quota is
+     fixed if anything is missing.
 - Only registry-style backends with downloadable assets record URLs and
   checksums (aqua, github, gitlab, forgejo, http, s3, and similar). Backends
   that build or run package managers (cargo, go, gem, dotnet, spm) record the
@@ -167,9 +210,11 @@ $ mise lock                      -> 14.1.1 with specifiers ["14"] (pin lost)
 
 Under `--locked` the tool is then "not in the lockfile", and `mise x --locked`
 printed only a warning before running a system `/usr/bin/jq` instead. With
-exact pins in `mise.toml` the specifier matches and nothing breaks; use
-plain `mise lock` or `mise lock <tool>` (no version) to refresh entries. To
-hold an older version, write that exact version in `mise.toml`. Also,
+exact pins the lock stays consistent, but a reviewer verified that
+`mise lock jq@1.7.1` over `jq = "1.8.2"` also rewrote `mise.toml` to `"1.7.1"`,
+so it is not harmless. Avoid the form entirely: for a deliberate version
+change use `mise use tool@X.Y.Z` (writes config and lock together), and to
+refresh entries use plain `mise lock` or `mise lock <tool>` (no version).
 `mise upgrade jq@1.8.1` does not downgrade a newer current version.
 
 ## Installing from the lock
@@ -208,9 +253,14 @@ Verified behavior:
   review then shows the change.
 - Replaced versions are scheduled for pruning after 24 hours
   (`upgrade.prune_after`); `--prune` removes them now, `--no-prune` keeps them.
-- `mise outdated --json` and `mise lock --bump --dry-run --json` give machine
-  output for bots. For jobs reading untrusted branches with secrets, set
+- For bots and update checks use `mise outdated --bump --json` and
+  `mise upgrade --bump`. `mise lock --bump --dry-run --json` prints `[]` under
+  exact pins (it only moves within the request's range), so it cannot detect
+  updates there. For jobs reading untrusted branches with secrets, set
   `MISE_SAFE=1` (docs).
+- `mise upgrade --bump` on an exact pin jumps to the newest release and can
+  cross majors (for node, onto a non-LTS line). To stay within a major, use
+  `mise use tool@"$(mise latest tool@<major>)"` instead.
 - Other flags: `-i` interactive picker, `--local`/`--global` scope,
   `-x tool` exclude.
 
@@ -236,5 +286,5 @@ together, and mention major bumps in the PR description.
 - After changing a tool's backend, run `mise install --force <tool>` and
   `mise lock`: the legacy install layout reuses the old install directory for
   the short name and reports "already installed" (verified).
-- Keep personal tools out of the committed lock with `mise.local.toml`
-  (its lock, `mise.local.lock`, and `.mise/locks/mise.local/` are gitignored).
+- Keep personal tools out of the committed lock with `mise.local.toml`. Add
+  it, `mise.local.lock`, and `.mise/locks/mise.local/` to `.gitignore`.

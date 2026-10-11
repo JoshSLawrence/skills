@@ -1,6 +1,6 @@
 ---
 name: mise-tools
-description: Install, pin, lock, upgrade, and run developer tools, CLIs, and language runtimes (terraform, jq, node, python, shellcheck, uv, go, ...) with mise - per project in mise.toml [tools] plus a committed mise.lock, or globally with mise use -g. Use this skill whenever the user needs or wants to install a dev tool, CLI, or runtime; hits "command not found" or the wrong version of one; sets up a repo's toolchain; edits, reviews, or upgrades [tools], .tool-versions, or mise.lock; chooses a backend (aqua, github, npm, pypi); sets up mise in CI; or migrates from asdf, nvm, pyenv, or tfenv - even if they never say "mise". Not for task authoring (mise-tasks skill).
+description: Install, pin, lock, upgrade, and run developer tools, CLIs, and language runtimes (terraform, jq, node, python, shellcheck, uv, go, ...) with mise - per project in mise.toml [tools] plus a committed mise.lock, or globally with mise use -g. Use this skill whenever the user needs or wants to install a dev tool, CLI, or runtime; hits "command not found" or the wrong version of one; sets up a repo's toolchain; edits, reviews, or upgrades [tools], .tool-versions, or mise.lock; chooses a backend (aqua, github, npm, pypi); sets up mise in CI; migrates from asdf, nvm, pyenv, or tfenv; or hits mise trust or untrusted-config errors - even if they never say "mise". Not for task authoring (mise-tasks skill) or project dependencies (packages a project imports, such as npm install lodash).
 ---
 
 <!-- markdownlint-disable MD013 -->
@@ -16,7 +16,8 @@ declare tools in a way that is pinned, reviewable, and the same for every
 contributor and runner, and to make sure the tool that actually ran is the one
 you intended.
 
-Behavior in this skill was verified against mise 2026.10.7. Docs:
+Behavior in this skill was verified against mise 2026.10.7 unless marked as
+coming from the docs. Docs:
 <https://mise.jdx.dev/dev-tools/>. Details live in `references/`; read the one
 you need rather than all of them:
 
@@ -57,19 +58,24 @@ in global config (`mise use -g`); tools a repo needs go in the repo's
 1. **Look first.** Check for `mise.toml`, `mise.local.toml`, `.tool-versions`,
    `mise.lock`, and idiomatic files (`.nvmrc`, `.python-version`). Run
    `mise ls --current` (what is selected, from which file) and
-   `mise config ls`. In a repo you did not write, read the config before the
-   first `mise install`/`exec`/`run` (see Trust below).
+   `mise config ls`. If `.tool-versions` is the only config in the directory,
+   `mise use` would append to it, and tools there are never locked: see
+   "Config hierarchy" below. In a repo you did not write, read the config
+   before the first `mise install`/`exec`/`run` (see Trust below).
 2. **Choose the backend.** Registry short name first (`mise registry <tool>`,
    `mise search <word>`), then `aqua:` or `github:`, then a language package
    backend with its runtime declared. Details: `references/backends.md`.
 3. **Pin and lock.** `mise use --pin tool@X.Y.Z` writes an exact version and
    installs it; if the repo has a `mise.lock`, mise updates it. First-time
-   lock: `mise lock`, then commit `mise.toml` and `mise.lock` together.
+   lock: `mise lock`, then commit `mise.toml` and `mise.lock` together. If the
+   lock summary mentions skipped entries, see "The lockfile in practice".
 4. **Run through mise** (`mise x -- <cmd>`, or `mise run`). See "Running tools
    as an agent" below.
-5. **Verify.** `mise ls --current` shows the selected version, `mise which
-   <bin>` shows the binary mise resolves, and `mise install --locked` proves
-   the lockfile alone is enough to install.
+5. **Verify.** `mise ls --current` shows the selected version and `mise which
+   <bin>` the binary mise resolves. Check that `mise.lock` has a
+   `platforms.<p>` table for every tool on every platform the team and CI use.
+   `mise install --locked` passes locally whenever the tools are already
+   installed, so the real proof is CI on a fresh runner.
 
 ## Pinning policy
 
@@ -92,12 +98,22 @@ shellcheck = "0.11.0"
 
 Rules of thumb:
 
-- `mise use tool` writes `"latest"` by default. In shared config, add
-  `--pin` (`mise use --pin jq@1`) so the resolved exact version is written.
-  Bare prefixes and `latest` do not belong in shared project config.
+- `mise use tool` writes `"latest"` by default. In shared config, write an
+  exact version instead. Bare prefixes and `latest` do not belong there.
+  - Newest release: `mise use --pin tool@latest`.
+  - Newest within a major: `mise use tool@"$(mise latest tool@24)"`.
+  - Trap: `mise use --pin tool@24` writes the *installed* match of `24`, not
+    the newest. Verified: with jq 1.7.1 installed, `mise use --pin jq@1`
+    wrote `"1.7.1"` while `mise latest jq@1` said 1.8.2. Only `@latest`
+    consults the remote list.
+  - Convert an existing `latest` entry without changing what runs:
+    `mise use tool@"$(mise current tool)"`.
 - Bump on purpose: `mise outdated --bump` to see candidates,
   `mise upgrade --bump [tool]` to apply. With exact pins, `--bump` rewrites
   both `mise.toml` and `mise.lock`. Review and commit the diff as one change.
+  `--bump` on an exact pin jumps to the newest release, crossing majors (node
+  to a non-LTS line, say). To stay in a major, use the within-major recipe
+  above instead.
 - Global or personal config (`mise use -g`, `mise.local.toml`) can be looser;
   `latest` or a major version is fine for tools nobody else depends on.
 - Brand-new releases are invisible for 24 hours by default (a supply-chain
@@ -112,10 +128,35 @@ Behavior verified: with the `lockfile` setting unset (the default), mise
 deliberately:
 
 ```sh
-mise lock                                   # default platforms, installs nothing
-mise lock --platform linux-x64,macos-arm64  # only what the team and CI use
+mise lock
 git add mise.toml mise.lock
 ```
+
+This resolves every tool for the default platform set and installs nothing.
+Prefer the default set over `--platform` restrictions: verified, with a lock
+holding only `linux-x64`, a plain `mise install` on macOS added `macos-arm64`
+entries, so a restricted lock churns in diffs. Use `--platform` only when a
+narrow set is genuinely wanted.
+
+Locking calls the GitHub API for `github:` tools. A rate-limited `mise lock`
+**exits 0** with WARN lines and an incomplete lock (a reviewer saw a `github:`
+tool with no `platforms.*` tables). Run it with a token when `gh` is signed
+in, and always inspect the result:
+
+```sh
+if command -v gh >/dev/null 2>&1 && gh auth token >/dev/null 2>&1; then
+  MISE_GITHUB_TOKEN="$(gh auth token)" mise lock
+else
+  mise lock
+fi
+```
+
+Without `gh`, proceed but warn the user that the anonymous limit is 60
+requests per hour per IP, shared with everything on that network, and
+recommend `gh auth login` or setting `MISE_GITHUB_TOKEN`. Then check that the
+summary shows no "skipped" entries and that every tool has `platforms.<p>`
+tables. See `references/backends.md` for the permanent `credential_command`
+option, which changes global config and is the user's call.
 
 Why not `[settings] lockfile = true` in `mise.toml`? Any `[settings]` table
 makes the file require trust, and an untrusted config makes read-only commands
@@ -126,9 +167,7 @@ free for newcomers and agents.
 Verified with exact pins in a project that already has a `mise.lock`:
 
 - `mise use --pin shfmt@3.10.0` adds the tool to `mise.toml` **and** adds its
-  entry to `mise.lock`. New entries cover the platforms already present in the
-  lockfile, so a lock created with only `macos-arm64` stays that way. Re-run
-  `mise lock --platform ...` when the platform list should grow.
+  entry to `mise.lock`, for the platforms already present in the lockfile.
 - `mise upgrade --bump jq` rewrites `jq = "1.7.1"` to `"1.8.2"` in
   `mise.toml` and the `version` and `specifiers` in `mise.lock`.
 
@@ -136,13 +175,13 @@ Two traps:
 
 - Tools declared **only** in `.tool-versions` are never locked
   (`mise lock` reports "No tools configured to lock"). Use `mise.toml`.
-- **Do not run `mise lock tool@X.Y.Z` against a prefix request.** The docs say
-  it locks an exact version without touching the request; in 2026.10.7 it
-  rewrites the entry's `specifiers` to the exact version, the configured
-  prefix no longer matches the lock, and the pin is silently ignored (or
-  lost on the next `mise lock`). With exact pins in `mise.toml` this is
-  harmless, which is another reason to pin exactly. To hold an old version,
-  write the exact version in `mise.toml`.
+- **Do not run `mise lock tool@X.Y.Z`.** The docs say it locks an exact
+  version without touching the request. In 2026.10.7 against a prefix request
+  it rewrites the entry's `specifiers`, the prefix no longer matches, and the
+  pin is silently ignored. Against an exact pin, a reviewer verified that
+  `mise lock jq@1.7.1` over `jq = "1.8.2"` rewrote `mise.toml` to `"1.7.1"`
+  too. For a deliberate version change use `mise use tool@X.Y.Z`; to refresh
+  entries use plain `mise lock [tool]`.
 
 Install from the lock with `mise install --locked` (CI should): it fails
 when a tool has no entry instead of resolving fresh. More in
@@ -160,7 +199,10 @@ when a tool has no entry instead of resolving fresh. More in
 | Existing or proposed `asdf:` plugin            | Avoid; look for another backend  |
 
 - Check what a short name resolves to: `mise registry jq` (ordered backend
-  list) and `mise tool jq` (backend, security features).
+  list) and `mise tool jq` (backend, security features). Some short names
+  resolve to a package backend (verified: `mise registry prettier` shows
+  `npm:prettier`), so if the result is `npm:`, `pypi:`, `cargo:`, or `go:`,
+  declare the runtime too.
 - A package backend needs its runtime declared in the same `[tools]` table:
   `npm:` needs `node`, `cargo:` needs `rust`, `go:` needs `go`, `pypi:` needs
   `uv` (or `python`). Verified: `npm:prettier` installs without node but
@@ -173,12 +215,13 @@ when a tool has no entry instead of resolving fresh. More in
 
 ## Running tools as an agent
 
-The Claude Code Bash tool's shell is not mise-activated. Verified: it carries
-a frozen PATH snapshot from the user's interactive shell and has no prompt or
-`cd` hooks, so `cd project && node` runs whatever version was first on that
-snapshot (often the user's global one), not the project's pin. Worse, the
-fallback is silent: shims and `mise x` run a system binary of the same name
-(for example macOS's `/usr/bin/jq`) when the tool is not configured.
+Agent shells are usually non-interactive and have no prompt or `cd` hooks, so
+mise's activation never fires. Verified in Claude Code's Bash tool: it
+inherits a PATH snapshot from the user's interactive shell, so
+`cd project && node` runs whatever version was first on that snapshot (often
+the user's global one), not the project's pin. Worse, the fallback is silent:
+shims and `mise x` run a system binary of the same name (for example macOS's
+`/usr/bin/jq`) when the tool is not configured.
 
 Therefore:
 
@@ -186,38 +229,46 @@ Therefore:
   `mise x -- node script.js`, or `mise run <task>` for tasks. It needs no
   setup, honors the config in the current directory, and installs missing
   tools.
-- **For several commands in one Bash call**, activate once at the top. Each
-  Bash call is a fresh shell, so this is per call:
+- **For several commands at once**, `mise x -c 'cmd1 && cmd2'` runs a shell
+  string under one resolved environment and does not depend on which shell
+  the harness uses (verified: `mise x -c 'jq --version && shfmt --version'`
+  ran both from the project pins).
+- **Alternatively activate once** at the top of the same call:
 
   ```sh
-  eval "$(mise activate bash)"   # use zsh when the shell is zsh
+  eval "$(mise activate bash)"
   terraform fmt -check && terraform validate
   ```
 
-  Match the argument to the shell in use (`echo "$SHELL"`; the Claude Code
-  tool on macOS typically runs zsh). Verified: `activate` works in
-  non-interactive `bash -c` and `zsh -fc`, and its `cd` wrapper switches tools
-  mid-script. `eval "$(mise env -s bash)"` is the one-shot variant: it exports
-  PATH for the current directory only and does not follow later `cd`s.
+  Pass the shell actually in use (`bash` or `zsh`; check `echo "$SHELL"`).
+  Verified: `activate` works in non-interactive `bash -c` and `zsh -fc`, and
+  its `cd` wrapper switches tools mid-script. Whether the activation survives
+  into the next command depends on the harness; where each call is a fresh
+  shell (as in Claude Code), repeat it per call.
+  `eval "$(mise env -s bash)"` is the one-shot variant: it exports PATH for
+  the current directory only and does not follow later `cd`s.
 - **Check what actually ran.** `mise which <bin>` prints the resolved path and
   errors loudly when the tool is not configured here; `mise ls --current`
   shows versions and the file that chose them. Distrust bare `--version`
   output that disagrees with `mise.toml`.
 - **Do not edit the user's shell rc** to add activation unless they ask.
-- Installing a missing tool on the user's behalf is fine in a project (it is
-  what `mise.toml` declares). Changing global config (`mise use -g`) changes
-  their machine, so say so first.
+- Installing a missing tool on the user's behalf is fine in a project whose
+  config you have checked (see Trust). Changing global config
+  (`mise use -g`) changes their machine, so say so first.
 
 ## Trust and safety
 
 - Never run `mise trust` on the user's behalf without asking. It tells mise
   to execute that config's hooks, templates, and env logic.
 - `mise install`, `mise exec`, and `mise run` **trust implicitly** every
-  non-global config they load. In a repo the user did not author, read its
-  mise config (option tables, `postinstall`, `[hooks]`, `[env]`) before the
-  first such command.
+  non-global config they load, so the first one is effectively `mise trust`.
+  In a repo the user did not author, read its mise config first. If it holds
+  anything beyond plain version strings (`postinstall`, `[hooks]`, `[env]`
+  with `exec()` or templates, `include`, unusual URLs or backends), ask the
+  user before running any of those commands.
 - Plain `[tools]` entries (version strings only) load without trust. Option
-  tables, `[env]`, `[settings]`, `[tool_alias]`, and `[hooks]` need it. An
+  tables, `[env]`, and `[settings]` need it (verified), as do `[tool_alias]`
+  and `[hooks]` (docs). An
   untrusted config fails read-only commands such as `mise ls` with "Config
   files in ... are not trusted" in non-interactive shells. Show the user what
   the file contains, then ask.
@@ -229,15 +280,21 @@ Therefore:
 
 ## Config hierarchy at a glance
 
-Highest precedence first, per directory: `mise.local.toml` (personal,
-gitignored), `mise.toml`, `.config/mise/...` variants, then `.tool-versions`.
+Highest precedence first, per directory: `mise.local.toml` (personal; add it
+to `.gitignore`), `mise.toml`, `.config/mise/...` variants, then
+`.tool-versions`.
 Directories closer to the working directory win over parents, and the global
 `~/.config/mise/config.toml` is the base. Per tool, the nearest entry replaces
 the whole entry, options included.
 
-- `mise use` writes to `mise.toml` in the nearest directory that has mise
-  config, creating one in the current directory if none exists. Use
-  `-e local` for `mise.local.toml` and `-g` for global.
+- `mise use` writes the lowest-precedence file in the nearest directory that
+  has mise config, creating `mise.toml` in the current directory if none
+  exists. That is usually `mise.toml`, but if `.tool-versions` is the only
+  config there, `mise use` appends to it (verified), and tools in
+  `.tool-versions` are never locked. Pass `--path mise.toml` (verified: it
+  creates `mise.toml` and writes there), or run `mise generate config
+  --tool-versions .tool-versions` first to convert. Use `-e local` for
+  `mise.local.toml` and `-g` for global.
 - Idiomatic files (`.nvmrc`, `.python-version`, `.terraform-version`) are
   **off by default**. Prefer `mise.toml`, which can be locked; enable an
   idiomatic file only when the project already depends on it
@@ -247,21 +304,28 @@ the whole entry, options included.
 
 Env configuration is outside this skill, with two tool-adjacent exceptions
 worth knowing exist: `_.path` (add directories to PATH) and
-`_.python.venv` (auto-activate a Python virtualenv). Both live in the `[env]`
-table, which requires trust like any non-`[tools]` content.
+`_.python.venv` (auto-activate a Python virtualenv; docs only). Both live in
+the `[env]` table, which requires trust like any non-`[tools]` content.
 
 ## CI in brief
 
 Install tools in CI from the same `mise.toml` and `mise.lock`:
 
 ```yaml
+on: pull_request
+
 permissions:
   contents: read
 
-steps:
-  - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-  - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
-  - run: mise run ci
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
+      - run: mise run ci
 ```
 
 Pin the action to a full commit SHA with a version comment, as above. With a
@@ -275,7 +339,10 @@ Pin the action to a full commit SHA with a version comment, as above. With a
 - [ ] Backend chosen registry-first; package backends have their runtime
 - [ ] Exact versions in project `mise.toml`; no `latest` or bare prefixes
 - [ ] `mise.lock` created or updated and committed with `mise.toml`
-- [ ] `mise install --locked` succeeds; `mise ls --current` shows the pins
+- [ ] Lock summary shows no skipped entries; each tool has `platforms.<p>`
+      tables for every runner
+- [ ] `mise ls --current` shows the pins; CI (fresh runner) installs with
+      `--locked`
 - [ ] Ran the tool through `mise x --` (or `mise run`) and confirmed with
       `mise which` that the mise-managed binary ran
 - [ ] No `mise trust`, global config change, or token in files without the

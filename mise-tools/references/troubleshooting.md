@@ -31,24 +31,25 @@ Then, for install problems, rerun with `MISE_DEBUG=1 mise install <tool>` (or
 
 ## Symptom table
 
-| Symptom                                                           | Likely cause and fix                                                                                                          |
-| ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `command not found` for a project tool                            | Shell not activated (agents never are). Run `mise x -- <cmd>`, or `mise install` if the tool shows `(missing)`                |
-| Bare `node`/`terraform` prints the wrong version                  | Global or system binary ran. Use `mise x --`; check `mise which`                                                              |
-| `jq --version` shows an Apple or distro version                   | Silent fallback to a system binary; the tool is not configured in this directory                                              |
-| `Config files in <path> are not trusted`                          | Read the config, ask the user, then `mise trust`; see `config-and-trust.md`                                                   |
-| `<tool> not found in mise tool registry`                          | Use an explicit backend id (`github:owner/repo`, `aqua:...`); `mise search`                                                   |
-| `<tool>@<req> is not in the lockfile` (with `--locked`)           | Run `mise lock` (add `--platform`) and commit; do not use `mise lock tool@X.Y.Z` on a prefix                                  |
-| `No lockfile URL found for <tool> on platform <p>`                | The lock lacks that platform: `mise lock --platform <p>`                                                                      |
-| 403 or `GitHub rate limit exceeded`                               | Anonymous quota used up. Set `MISE_GITHUB_TOKEN` or `GITHUB_TOKEN` (`backends.md`)                                            |
-| `Checksum mismatch`                                               | Never delete the checksum. Investigate the asset; then `mise lock <tool>` and review `git diff mise.lock`                     |
-| Newest release not offered                                        | `minimum_release_age` hides releases under 24 hours old; or the remote version list cache (1 hour): `mise cache clear <tool>` |
-| `mise install` says "already installed" but version is old        | A prefix matched an installed version. Pin exactly, then `mise install`                                                       |
-| After switching a backend, old behavior persists                  | The old install directory is reused: `mise install --force <tool>`                                                            |
-| `exec: node: not found` from an `npm:` tool                       | Declare `node` in `[tools]`                                                                                                   |
-| `missing: <tool>@<ver>` warning                                   | Declared but not installed: `mise install`                                                                                    |
-| `No version is set for shim` / `Tool not installed for shim`      | The cwd does not configure the tool, or it is not installed: `mise ls --current`, `mise install` (docs)                       |
-| Untrusted-config error from `mise ls`/`mise env` in a fresh clone | Plain `[tools]` loads without trust; option tables, `[env]`, `[settings]` do not                                              |
+| Symptom                                                           | Likely cause and fix                                                                                                                                                         |
+| ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `command not found` for a project tool                            | Shell not activated (agent shells usually are not). Run `mise x -- <cmd>`, or `mise install` if the tool shows `(missing)`                                                   |
+| Bare `node`/`terraform` prints the wrong version                  | Global or system binary ran. Use `mise x --`; check `mise which`                                                                                                             |
+| `jq --version` shows an Apple or distro version                   | Silent fallback to a system binary; the tool is not configured in this directory                                                                                             |
+| `Config files in <path> are not trusted`                          | Read the config, ask the user, then `mise trust`; see `config-and-trust.md`                                                                                                  |
+| `<tool> not found in mise tool registry`                          | Use an explicit backend id (`github:owner/repo`, `aqua:...`); `mise search`                                                                                                  |
+| `<tool>@<req> is not in the lockfile` (with `--locked`)           | Run `mise lock` (add `--platform`) and commit; do not use `mise lock tool@X.Y.Z` on a prefix                                                                                 |
+| `No lockfile URL found for <tool> on platform <p>`                | The lock lacks that platform: `mise lock --platform <p>`                                                                                                                     |
+| 403 or `GitHub rate limit exceeded`                               | Anonymous quota (60 per hour per IP, shared) used up. Set `MISE_GITHUB_TOKEN` or `GITHUB_TOKEN` (`backends.md`)                                                              |
+| Lock written but a tool has no `platforms.<p>` entries            | A rate-limited `mise lock` exits 0 with an incomplete lock. Look for "skipped" in its summary; fix the token (`gh auth login` or `MISE_GITHUB_TOKEN`) and re-run `mise lock` |
+| `Checksum mismatch`                                               | Never delete the checksum. Investigate the asset; then `mise lock <tool>` and review `git diff mise.lock`                                                                    |
+| Newest release not offered                                        | `minimum_release_age` hides releases under 24 hours old; or the remote version list cache (1 hour): `mise cache clear <tool>`                                                |
+| `mise install` says "already installed" but version is old        | A prefix matched an installed version. Pin exactly, then `mise install`                                                                                                      |
+| After switching a backend, old behavior persists                  | The old install directory is reused: `mise install --force <tool>`                                                                                                           |
+| `exec: node: not found` from an `npm:` tool                       | Declare `node` in `[tools]`                                                                                                                                                  |
+| `missing: <tool>@<ver>` warning                                   | Declared but not installed: `mise install`                                                                                                                                   |
+| `No version is set for shim` / `Tool not installed for shim`      | The cwd does not configure the tool, or it is not installed: `mise ls --current`, `mise install` (docs)                                                                      |
+| Untrusted-config error from `mise ls`/`mise env` in a fresh clone | Plain `[tools]` loads without trust; option tables, `[env]`, `[settings]` do not                                                                                             |
 
 Never fix a failure by deleting `mise.lock`, loosening a pin to `latest`, or
 disabling checks (`--no-verify`-style settings) without telling the user what

@@ -33,6 +33,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5.1.1
       - run: mise run ci
 ```
@@ -53,9 +55,10 @@ jobs:
   lock lacks) fails the job instead of resolving fresh. Re-run
   `mise lock --platform ...` locally to cover every runner OS and commit it.
 - Useful inputs: `version` (pin the mise version itself), `install`,
-  `install_args`, `cache`, `cache_save`, `cache_key_prefix`, `working_directory`,
-  `github_token`, `experimental`, `add_shims_to_path`, `env`. Pin `version` if
-  you need the mise version to be reproducible too.
+  `install_args`, `cache`, `cache_save`, `cache_key_prefix`,
+  `working_directory`, `github_token`, `persist_github_token`,
+  `experimental`, `add_shims_to_path`, `env`. Pin `version` if you need the
+  mise version to be reproducible too.
 - Have CI call one task (`mise run ci`) that contributors can also run
   locally; see the `mise-tasks` skill. Warm caches for task-only tools with
   `mise install --include-task-tools` (docs).
@@ -65,9 +68,13 @@ jobs:
 
 ## Tokens
 
-- The action authenticates its own install with the workflow token, but
-  **does not export it** to later steps (docs). A later step that installs
-  tools (`mise use`, `mise install`, `mise upgrade`) needs it explicitly:
+- The action authenticates its own install with the workflow token but does
+  not export it to later steps by default: mise-action v5.1.1's `action.yml`
+  has a `persist_github_token` input, default `"false"`, and its release notes
+  say the token stays inside the action. Setting `persist_github_token: true`
+  exports it for the rest of the job. The narrower option is to give only the
+  step that needs it a step-level `env:`. A later step that installs tools
+  (`mise use`, `mise install`, `mise upgrade`) needs one of the two:
 
   ```yaml
   - run: mise install
@@ -100,6 +107,11 @@ store keyed on the lockfile and let mise re-extract and verify:
   with:
     cache: false
 ```
+
+That path is Linux's cache directory. On macOS runners mise's cache is
+`~/Library/Caches/mise` (verified with `mise cache path`), so either use a
+per-OS `path` or set `MISE_CACHE_DIR` in the job's `env:` so the path is the
+same everywhere.
 
 Keying on `hashFiles('mise.lock')` means any lock change (a bump) busts the
 cache and nothing stale survives. Look up and pin the `actions/cache` SHA the

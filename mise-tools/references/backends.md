@@ -90,16 +90,21 @@ mise never adds a runtime for you (apart from uv supplying Python for
 
 ```toml
 [tools]
-node = "24.11.1"
-"npm:prettier" = "3.9.9"
-uv = "0.9.0"
-"pypi:ruff" = "0.14.0"
+node = "X.Y.Z"
+"npm:some-cli" = "X.Y.Z"
+uv = "X.Y.Z"
+"pypi:some-tool" = "X.Y.Z"
 ```
+
+`X.Y.Z` stands for real exact versions, resolved with `mise latest <tool>`.
+Use a package backend only for a tool the registry and `aqua:`/`github:` do
+not cover. A registry short name can itself resolve to a package backend:
+verified, `mise registry prettier` shows `npm:prettier`. If `mise registry
+<tool>` lists `npm:`, `pypi:`, `cargo:`, or `go:`, declare the runtime too.
 
 Verified failure mode: `npm:prettier` with no node installs fine and then
 `mise exec -- prettier` fails with `exec: node: not found`. Pin the runtime to
-an exact version too, since the package's behavior depends on it. (Version
-numbers above are placeholders; resolve real ones with `mise latest`.)
+an exact version too, since the package's behavior depends on it.
 
 For `pypi:`, the lock records the dependency graph only with uv >= 0.12.10
 (docs). For npm and pypi, commit the `.mise/locks/` sidecars.
@@ -151,9 +156,18 @@ shellcheck = { version = "0.11.0", os = ["linux", "macos"] }
 ## GitHub tokens
 
 Public release metadata is mostly served by a mise-run mirror
-(`use_versions_host`, on by default), but installs and especially `mise lock`
-still use the GitHub API. Verified: about 15 tokenless installs and locks left
-the anonymous quota at 59 of 60 used. Set a token for locking and CI.
+(`use_versions_host`, on by default), but some paths still use the GitHub API:
+in testing, locking `github:` tools did, while aqua tools locked with no
+quota. The anonymous limit is 60 requests per hour per IP and is shared with
+everything else on that network; during testing it was observed exhausted
+(59 of 60 used), cause not isolated. Set a token for locking and CI. A
+rate-limited `mise lock` exits 0 with an incomplete lock; see
+`versions-and-lockfile.md` for the check.
+
+When `gh` is signed in, a one-off token is
+`MISE_GITHUB_TOKEN="$(gh auth token)" mise lock` (it fails if `gh` is missing
+or logged out, so test `command -v gh` and `gh auth token` first, as shown
+there).
 
 - Environment priority: `MISE_GITHUB_ENTERPRISE_TOKEN` (non-github.com hosts),
   `MISE_GITHUB_TOKEN`, `GITHUB_API_TOKEN`, `GITHUB_TOKEN`, then a configured

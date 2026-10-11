@@ -45,8 +45,8 @@ how to isolate experiments.
   | Wanted everywhere, not tied to a repo   | `mise use -g`               |
   | Only for CI or a special environment    | `mise.<env>.toml`           |
 
-- Gitignore `mise.local.toml`, `mise.local.lock`, and `.mise/locks/mise.local/`
-  (docs).
+- Add `mise.local.toml`, `mise.local.lock`, and `.mise/locks/mise.local/` to
+  `.gitignore`; nothing does it for you (docs).
 - `min_version = "2026.1.0"` at the top of `mise.toml` fails fast on an old
   mise (docs). It loads without trust.
 - Editors can validate with the schema at
@@ -60,7 +60,10 @@ how to isolate experiments.
   included. `mise.toml` wins within a directory. **Tools declared only there
   are never locked** (verified: `mise lock` -> "No tools configured to
   lock"). Keep an existing one if asdf users still need it, but prefer
-  `mise.toml` and do not maintain both with different versions.
+  `mise.toml` and do not maintain both with different versions. Because
+  `mise use` appends to the lowest-precedence file in a directory, in a
+  directory whose only config is `.tool-versions` it would write there
+  (verified); pass `--path mise.toml` or convert first.
 - `mise generate config --tool-versions .tool-versions [--dry-run]` converts
   one to `mise.toml` (verified; it maps `nodejs` to `node`).
 - Idiomatic files (`.nvmrc`, `.python-version`, `.go-version`,
@@ -112,9 +115,11 @@ Verified rules:
 What to do as an agent:
 
 1. In an unfamiliar repo, read `mise.toml`/`mise.local.toml` and
-   `.config/mise` before running `mise install`, `exec`, or `run`: look for
-   `postinstall`, `[hooks]`, `[env]` with `exec()`/templates, `include`, and
-   tool options pointing at odd URLs.
+   `.config/mise` before running `mise install`, `exec`, or `run`, because the
+   first of them effectively runs `mise trust`. Look for `postinstall`,
+   `[hooks]`, `[env]` with `exec()`/templates, `include`, and tool options
+   pointing at odd URLs or backends. If any are present, ask the user before
+   running those commands.
 2. If a read-only command fails with "not trusted", show the user what is in
    the file and ask whether to run `mise trust`. Do not trust to make the
    error go away.

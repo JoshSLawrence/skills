@@ -59,8 +59,9 @@ version = "1.7.1"
 - Verified: running `./bin/jq --version` installed jq 1.7.1 and printed it.
   `mise install` ignores stubs.
 - The stub needs `mise` on PATH (verified: without it the shebang fails with
-  `env: mise: No such file or directory`). `mise generate tool-stub ... --bootstrap`
-  produces a script that installs mise itself (docs).
+  `env: mise: No such file or directory`).
+  `mise generate tool-stub ... --bootstrap` produces a script that installs
+  mise itself (docs).
 - Generate stubs with URLs and checksums:
   `mise generate tool-stub ./bin/shellcheck --platform-url <url>` produced
   `[platforms.macos-arm64]` with `url`, `checksum = "blake3:..."`, `size`
@@ -129,9 +130,10 @@ installs/npm-prettier/3/node_modules/.bin/prettier
   (docs, not run).
 - Default directories (override with `MISE_DATA_DIR`, `MISE_CONFIG_DIR`,
   `MISE_CACHE_DIR`, `MISE_STATE_DIR`): data `~/.local/share/mise`, config
-  `~/.config/mise`, cache `~/.cache/mise`, state `~/.local/state/mise`.
-  Overrides are honored (verified); that is how to test mise without touching
-  a real setup.
+  `~/.config/mise`, state `~/.local/state/mise`, and cache `~/.cache/mise` on
+  Linux but `~/Library/Caches/mise` on macOS (verified with `mise cache
+  path`). Overrides are honored (verified); that is how to test mise
+  without touching a real setup.
 
 ## Lazy tools, wrappers, and deps
 
