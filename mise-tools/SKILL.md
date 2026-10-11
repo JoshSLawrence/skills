@@ -1,6 +1,6 @@
 ---
 name: mise-tools
-description: Install, pin, lock, upgrade, and run developer tools, CLIs, and language runtimes (terraform, jq, node, python, shellcheck, uv, go, ...) with mise - per project in mise.toml [tools] plus a committed mise.lock, or globally with mise use -g. Use this skill whenever the user needs or wants to install a dev tool, CLI, or runtime; hits "command not found" or the wrong version of one; sets up a repo's toolchain; edits, reviews, or upgrades [tools], .tool-versions, or mise.lock; chooses a backend (aqua, github, npm, pypi); sets up mise in CI; migrates from asdf, nvm, pyenv, or tfenv; or hits mise trust or untrusted-config errors - even if they never say "mise". Not for task authoring (mise-tasks skill) or project dependencies (packages a project imports, such as npm install lodash).
+description: Get developer CLIs and language runtimes onto a machine or into a repo with mise, even when the tool is only incidental to the real job and the user never says "mise". Use this skill as soon as a user says that a tool they need (jq, terraform, kubectl, node, python, ripgrep, golangci-lint) isn't installed, is the wrong version, or that they'd rather not brew or apt-install things. `mise x` can run the tool on demand without a system install, so there's no need to work around it. Also use it to install CLIs for the user, fix "command not found", bump or pin versions in mise.toml, .tool-versions or mise.lock, give teammates and CI identical toolchains, choose a backend (aqua, github, npm, pypi), migrate from asdf, nvm, pyenv or tfenv, or resolve mise trust errors. Don't use it for writing tasks or scripts (that's the mise-tasks skill) or for libraries a project imports (npm install lodash, cargo add, go mod).
 ---
 
 <!-- markdownlint-disable MD013 -->
@@ -60,7 +60,8 @@ The user will rarely say "mise". Use it whenever a task touches a dev tool:
 - **You need a tool mid-task** (jq, yq, gh, shellcheck, a linter) that is
   missing or the wrong version -> run it one-off with
   `mise x tool@X.Y.Z -- cmd`. Outside a mise project, or inside one whose
-  config you reviewed or that is already trusted, no question is needed.
+  config you reviewed or that is already trusted, no question is needed;
+  otherwise prefix `MISE_SAFE=1` (see "Why each one" below).
 - **"Install X for me"** (dev CLI or runtime) -> `mise use -g X@latest` after
   saying it changes global config, or `mise use --pin` if it is for this repo.
 - **CI uses `setup-node`, `setup-python`, `setup-go`, `setup-terraform`** with
