@@ -57,28 +57,51 @@ in global config (`mise use -g`); tools a repo needs go in the repo's
 
 The user will rarely say "mise". Use it whenever a task touches a dev tool:
 
-| Situation                                                                                          | Move                                                                                                           |
-| -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| You need a tool mid-task (jq, yq, gh, shellcheck, a linter) and it is missing or the wrong version | `mise x tool@X.Y.Z -- cmd`, one-off, no questions needed                                                       |
-| "Install X for me" (dev CLI or runtime)                                                            | `mise use -g X@latest` after saying it changes global config; a pinned `mise use --pin` if it is for this repo |
-| CI uses `setup-node`, `setup-python`, `setup-go`, `setup-terraform` with hardcoded versions        | Offer to move versions to `mise.toml` plus `jdx/mise-action`                                                   |
-| Writing README, CONTRIBUTING, or onboarding steps                                                  | "Install mise, then `mise install`" instead of per-tool commands (when the repo uses or adopts mise)           |
-| "Works on my machine", version drift between people or CI                                          | Pin exactly in `mise.toml` and commit `mise.lock`                                                              |
-| "Requires terraform >= 1.10", unsupported node, engines mismatch                                   | Pin the required version with mise; do not upgrade the system install                                          |
+- **You need a tool mid-task** (jq, yq, gh, shellcheck, a linter) that is
+  missing or the wrong version -> run it one-off with
+  `mise x tool@X.Y.Z -- cmd`. Outside a mise project, or inside one whose
+  config you reviewed or that is already trusted, no question is needed.
+- **"Install X for me"** (dev CLI or runtime) -> `mise use -g X@latest` after
+  saying it changes global config, or `mise use --pin` if it is for this repo.
+- **CI uses `setup-node`, `setup-python`, `setup-go`, `setup-terraform`** with
+  hardcoded versions -> offer to move them to `mise.toml` plus
+  `jdx/mise-action`.
+- **Writing README, CONTRIBUTING, or onboarding steps** -> "install mise, then
+  `mise install`" instead of per-tool commands, when the repo uses or adopts
+  mise.
+- **"Works on my machine", version drift** between people or CI -> offer exact
+  pins in `mise.toml` plus a committed `mise.lock`; do it directly only if the
+  repo already uses mise.
+- **"Requires terraform >= 1.10", unsupported node, engines mismatch** ->
+  unblock with a one-off `mise x terraform@X.Y.Z -- ...`; if the repo already
+  uses mise, pin it in `mise.toml`, otherwise offer to.
 
 Why each one:
 
-- **One-off use** is safe to do unasked. Verified: in a directory with no mise
+- **One-off use** needs no setup. Verified: in a directory with no mise
   config, `mise x jq@1.8.2 -- jq --version` printed `jq-1.8.2`, left no file
-  behind, and did not touch global config. It installs only into mise's cache,
-  not project config, brew, or the system, so prefer it to `brew install`,
-  `npm i -g`, `pip install --user`, or `curl | sh` for ad-hoc needs. A bare
-  `mise x jq -- ...` also works (it picked 1.8.2 here), but it resolves to a
-  newest-or-already-installed version, so give a version when results matter.
-  If the project will need the tool again (a script, CI), suggest adding it to
-  `[tools]` instead.
+  behind, and did not touch global config. It installs into mise's own data
+  directory, not project config, brew, or the system, so prefer it to
+  `brew install`, `npm i -g`, `pip install --user`, or `curl | sh` for ad-hoc
+  needs. A bare `mise x jq -- ...` also works (it picked 1.8.2 here), but it
+  resolves to a newest-or-already-installed version, so give a version when
+  results matter. If the project will need the tool again (a script, CI),
+  suggest adding it to `[tools]` instead.
+- **Untrusted repos:** `mise x` trusts and evaluates the current directory's
+  config. Verified: with `[env] FOO = "bar"` in an unreviewed `mise.toml`,
+  `mise x jq@1.8.2 -- sh -c 'echo FOO=$FOO'` printed `FOO=bar` and the
+  directory became trusted. Prefix `MISE_SAFE=1` in a repo whose config you
+  have not reviewed: it printed `FOO=` and the directory stayed untrusted.
+  Safe mode also ignores the project's env and settings, so use it for ad-hoc
+  tools, not for running the project's own pinned toolchain (review the config
+  and ask first for that). `mise x -C <dir>` is no fix; it changes the
+  command's working directory.
 - **Global installs** change the user's machine, so say so first. Use brew
-  only for GUI apps and system libraries.
+  only for GUI apps and system libraries. From inside a repo with an untrusted,
+  non-trivial config, `mise use -g` fails with "not trusted" in a non-TTY
+  shell; a reviewer verified that `mise use -g -C <neutral dir> X@latest` and
+  `MISE_SAFE=1 mise use -g X@...` both work, write global config, and leave the
+  repo untrusted.
 - **CI consolidation** removes a second source of truth, but rewriting a
   workflow is the user's decision: offer it, do not do it silently.
 - **Docs** that list per-tool install commands drift; one `mise install` line
@@ -88,6 +111,7 @@ Why each one:
 
 The boundaries still hold: not for project dependencies, GUI apps, or system
 libraries, and respect a repo's existing version manager (offer migration).
+Introducing mise to a repo that does not use it is a proposal, not a default.
 
 ## Workflow
 
@@ -246,7 +270,7 @@ when a tool has no entry instead of resolving fresh. More in
   `uv` (or `python`). Verified: `npm:prettier` installs without node but
   fails at run time with `node: not found`.
 - With `go` pinned, keep the `go`/`toolchain` line in `go.mod` at or below the
-  pin, or Go downloads its own toolchain and bypasses mise
+  pin (docs), or Go downloads its own toolchain and bypasses mise
   (`references/backends.md`).
 - Do not add new `ubi:` entries: the backend is deprecated and is removed in
   mise 2027.1.0. Use `github:`.
@@ -390,5 +414,6 @@ Pin the action to a full commit SHA with a version comment, as above. With a
 - [ ] No `mise trust`, global config change, or token in files without the
       user's say-so
 - [ ] README/CONTRIBUTING setup instructions mention `mise install`
-- [ ] Used mise proactively where a tool was needed (one-off `mise x`, CI
-      consolidation offered), not brew, `npm i -g`, or `curl | sh`
+- [ ] Used mise for tools the task needed (one-off `mise x`, not brew,
+      `npm i -g`, or `curl | sh`); CI consolidation offered where CI pins tool
+      versions separately

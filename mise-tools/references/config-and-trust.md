@@ -111,6 +111,11 @@ Verified rules:
 - `MISE_SAFE=1` refuses tasks, `exec()` templates, and plugin installs and
   skips hooks, intended for bots resolving versions from untrusted branches
   (docs).
+  Verified for one-off tools: `MISE_SAFE=1 mise x jq@1.8.2 -- sh -c 'echo
+  FOO=$FOO'` in a directory whose untrusted `mise.toml` sets `FOO` printed
+  `FOO=` and left the directory untrusted, whereas plain `mise x` printed
+  `FOO=bar` and trusted it. It also ignores the project's env and settings,
+  so it suits ad-hoc tools, not running the project's own toolchain.
 
 What to do as an agent:
 
