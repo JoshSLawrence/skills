@@ -29,6 +29,9 @@ README.md
   shfmt) and actually run. Never add lint suppressions without approval.
 - Keep the README inventory in sync whenever a skill is added, renamed, or
   removed.
+- Each skill must install and work on its own, so an asset two skills need
+  is copied into both. CI fails if the copies differ (see `ci.yml`); edit
+  them together.
 - Markdown stays within 80 columns (tables and URLs excepted; use
   `<!-- markdownlint-disable MD013 -->`).
 

@@ -68,8 +68,9 @@ Restart Claude Code (or start a new session) to pick up changes.
 2. Add the skill to the inventory in [README.md](README.md) in the same PR.
 3. Follow the skill-authoring conventions in [CLAUDE.md](CLAUDE.md).
 4. Run any shipped scripts for real in a scratch copy and lint them. CI runs
-   `shellcheck` on everything under `assets/`. Do not add lint suppressions
-   without maintainer approval; fix the underlying issue.
+   `shellcheck` on everything under `assets/` and checks that assets shared
+   between skills (the bash helper library) are identical. Do not add lint
+   suppressions without maintainer approval; fix the underlying issue.
 
 ## Repository settings (for maintainers)
 

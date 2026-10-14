@@ -6,13 +6,17 @@ skill is a top-level directory containing a `SKILL.md`, plus optional
 
 ## Inventory
 
+- [`bash`](bash/SKILL.md) - Write bash scripts that fail fast, log a
+  readable story, handle expected errors deliberately, and pass shellcheck
+  and shfmt, with a shared helper library and the strict-mode gotchas.
 - [`mise-env`](mise-env/SKILL.md) - Set project environment variables with
   [mise](https://mise.jdx.dev/environments/): `[env]` in `mise.toml`, `.env`
   files, per-environment config with `MISE_ENV`, sops/age-encrypted secrets
   and redaction, and Python venvs that activate automatically.
 - [`mise-tasks`](mise-tasks/SKILL.md) - Author repo scripts and automation as
-  [mise](https://mise.jdx.dev/tasks/) tasks, with a shared shell library,
-  color-coded logging, argument handling, and shellcheck/shfmt linting.
+  [mise](https://mise.jdx.dev/tasks/) tasks: layout, `#MISE`/`#USAGE`
+  headers, argument parsing, dependencies and aggregates, and a lint task.
+  Pairs with `bash` for the script bodies.
 - [`mise-tools`](mise-tools/SKILL.md) - Install, pin, lock, and run dev tools
   and runtimes with [mise](https://mise.jdx.dev/dev-tools/): `[tools]` in
   `mise.toml`, a committed `mise.lock`, backend choice, CI setup, and running
