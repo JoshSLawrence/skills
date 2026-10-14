@@ -1,0 +1,7 @@
+root = true
+
+# shfmt reads these. Scripts without a .sh extension need their own section,
+# e.g. [bin/**].
+[*.sh]
+indent_style = space
+indent_size = 2

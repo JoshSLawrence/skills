@@ -1,6 +1,6 @@
 ---
 name: mise-tasks
-description: Author repository scripts, automation, and developer tooling as mise tasks (mise.toml tasks and executable file tasks in mise-tasks/) with shared shell libraries, color-coded logging, shellcheck/shfmt linting, and proper argument handling. Use this skill whenever the user wants to add, write, refactor, or organize a script, build/test/lint/deploy/release step, Makefile replacement, CI helper, or any repo automation - even if they never mention mise - and whenever a mise.toml, mise-tasks/ directory, or `mise run` is involved. Default to mise as the orchestrator for repo tasks.
+description: Author repository scripts, automation, and developer tooling as mise tasks (mise.toml tasks and executable file tasks in mise-tasks/) - task layout, #MISE/#USAGE headers, argument parsing with the usage spec, dependencies and aggregates, and a lint task. Use this skill whenever the user wants to add, write, refactor, or organize a script, build/test/lint/deploy/release step, Makefile replacement, CI helper, or any repo automation - even if they never mention mise - and whenever a mise.toml, mise-tasks/ directory, or `mise run` is involved. Default to mise as the orchestrator for repo tasks.
 ---
 
 <!-- markdownlint-disable MD013 -->
@@ -13,6 +13,11 @@ both run `mise run <task>`, and mise supplies the pinned tools, the
 environment, dependency ordering, argument parsing, and `--help`. Your job is
 to produce tasks that are small to invoke, safe to run, easy to read, and
 lint-clean.
+
+This skill covers the mise side: where tasks live, how they declare
+arguments and dependencies, and how they're run. For the bash inside a task
+(strict mode, logging, error handling, the helper library, strict-mode
+gotchas), load the `bash` skill.
 
 Docs: <https://mise.jdx.dev/tasks/>. Details live in `references/`; read the
 one you need rather than all of them:
@@ -37,8 +42,9 @@ one you need rather than all of them:
    linters with `mise use --pin shellcheck@latest shfmt@latest` so they land
    as exact versions (see the `mise-tools` skill). Use
    `assets/mise-tasks/example-task` as the starting point for new tasks.
-4. **Write the task**, then run it for real: happy path, `--help`, a bad
-   argument, and (if it has one) `--dry-run`.
+4. **Write the task** (the script body follows the `bash` skill), then run
+   it for real: happy path, `--help`, a bad argument, and (if it has one)
+   `--dry-run`.
 5. **Lint**: `mise run lint`. Fix findings at the source. Do not add
    `# shellcheck disable=` or similar suppressions without the user's
    explicit approval.
@@ -107,10 +113,9 @@ log_ok "Deployed"
 
 Conventions and the reasons behind them:
 
-- **`#!/usr/bin/env bash` + `set -euo pipefail`** at the top of every bash
-  task. Failing fast beats half-finished automation. Handle an *expected*
-  failure with `try` (errexit paused locally) instead of removing strict
-  mode.
+- **The body is an ordinary bash script**: shebang, `set -euo pipefail`,
+  step logging, `try` for expected failures, logs to stderr and data to
+  stdout, as the `bash` skill describes.
 - **`#MISE` / `#USAGE` have no space** after `#`. `# MISE` is silently
   ignored. If a formatter rewrites the comments, use `# [MISE]`.
 - **Always set `description`.** It powers `mise tasks`, `--help`, completion.
@@ -122,8 +127,6 @@ Conventions and the reasons behind them:
   `$MISE_ORIGINAL_CWD` (or `dir="{{cwd}}"`) when you need the caller's
   location. Use `MISE_PROJECT_ROOT` for repo-relative paths (stable in
   monorepos).
-- **Logs go to stderr, data to stdout**, so `$(mise run thing)` captures only
-  the result.
 - **Idempotent and re-runnable** where practical; use `sources`/`outputs`
   for build-like tasks so mise skips up-to-date work.
 - **Plaintext secrets never live in `mise.toml` or scripts.** Read them from
@@ -133,29 +136,20 @@ Conventions and the reasons behind them:
 
 ## The shared library (`.lib/common.sh`)
 
-`assets/mise-tasks/.lib/common.sh` is tested against mise and shellcheck. It
-provides:
+`assets/mise-tasks/.lib/common.sh` is the `bash` skill's helper library
+(logging, `die`, `require_cmd`/`require_env`, `run` with `DRY_RUN`, `try`,
+temp-dir cleanup, `install_traps`, `project_root`); CI keeps the two copies
+identical. The `bash` skill documents each helper. The mise-specific parts:
 
-| Helper                                   | Purpose                                          |
-| ---------------------------------------- | ------------------------------------------------ |
-| `log_info/ok/warn/error/step/debug`      | Color-coded, stderr; `debug` needs `VERBOSE=1`   |
-| `die MSG [CODE]`                         | Log error and exit                               |
-| `require_cmd NAME [HINT]`, `require_env` | Precondition checks with actionable errors       |
-| `run CMD...`                             | Echo (shell-quoted) then run; honors `DRY_RUN=1` |
-| `try RC_VAR CMD...`                      | Run with errexit paused; exit status into var    |
-| `make_tmpdir VAR`, `track_cleanup PATH`  | Temp paths removed on exit                       |
-| `install_traps`                          | Cleanup on exit; report the failing command      |
-| `project_root`                           | `$MISE_PROJECT_ROOT` or an actionable error      |
+- It lives in `mise-tasks/.lib/`, non-executable, so mise doesn't register
+  it as a task (see the layout above).
+- Tasks source it via `$MISE_PROJECT_ROOT`, and `project_root` returns that
+  same directory.
+- Inside `mise run`, stderr is a pipe even in a terminal; the lib treats a
+  mise-launched task as color-capable so logs keep their colors.
 
-Extend the lib when logic repeats across two or more tasks (git helpers,
-retry/backoff, JSON parsing wrappers, confirmation prompts). Keep it
-bash 3.2 compatible so tasks run on stock macOS. Keep it free of side
-effects at source time.
-
-Color note: inside `mise run`, stdout/stderr are pipes, so `[ -t 2 ]` is
-false even in a terminal. The lib treats a mise-launched task as
-color-capable and honors `NO_COLOR`, `FORCE_COLOR`, and `TERM=dumb`. Don't
-reintroduce a plain TTY check.
+Extend the lib when logic repeats across two or more tasks, and keep it
+bash 3.2 compatible so tasks run on stock macOS.
 
 ## Arguments
 
@@ -204,9 +198,8 @@ Lint with the language's own tool (ruff, eslint) and add it as a task under
 
 - [ ] Executable bit set (and staged as executable in git)
 - [ ] `description`, `#USAGE` for every input, sensible defaults
-- [ ] `set -euo pipefail`, lib sourced, `install_traps` if it makes temp files
-- [ ] Meaningful logging: a step line per phase, actionable error messages
-- [ ] Dry-run support for anything destructive or outward-facing
+- [ ] Body meets the `bash` skill's checklist (strict mode, lib, logging,
+      dry-run for anything destructive)
 - [ ] `mise run lint` passes with no new suppressions
 - [ ] Ran it: success path, `--help`, invalid input
 - [ ] Added to an aggregate task and mentioned in docs if user-facing

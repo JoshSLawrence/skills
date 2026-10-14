@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
-# Shared helpers for mise file tasks. Source it; do not execute it.
+# Shared helpers for bash scripts. Source it; do not execute it.
 #
-# Lives in a dot-directory and is intentionally NOT executable: mise only
-# registers executable files outside dot-directories as tasks, so this stays
-# out of `mise tasks`.
+# Keep it NOT executable: in a mise repo it lives in mise-tasks/.lib/, and
+# mise registers executable files outside dot-directories as tasks.
 #
-# Usage from a task:
+# Usage from a standalone script in scripts/ (lib in scripts/lib/):
+#   set -euo pipefail
+#   # shellcheck source=lib/common.sh
+#   source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/common.sh"
+#
+# Usage from a mise file task (lib in mise-tasks/.lib/):
 #   set -euo pipefail
 #   # shellcheck source=mise-tasks/.lib/common.sh
 #   source "${MISE_PROJECT_ROOT:?run via 'mise run <task>'}/mise-tasks/.lib/common.sh"
@@ -13,9 +17,9 @@
 # Targets bash 3.2+ (macOS system bash) -- no associative arrays, mapfile, or
 # ${var,,}.
 
-# Guard against double-sourcing (tasks that source helpers that source us).
-[[ -n "${_MISE_COMMON_LOADED:-}" ]] && return 0
-_MISE_COMMON_LOADED=1
+# Guard against double-sourcing (scripts that source helpers that source us).
+[[ -n "${_COMMON_SH_LOADED:-}" ]] && return 0
+_COMMON_SH_LOADED=1
 
 # ---------------------------------------------------------------------------
 # Colors
@@ -157,7 +161,7 @@ track_cleanup() {
 #   cp input "$work/"
 make_tmpdir() {
   local dir
-  dir="$(mktemp -d "${TMPDIR:-/tmp}/mise-task.XXXXXX")"
+  dir="$(mktemp -d "${TMPDIR:-/tmp}/${0##*/}.XXXXXX")"
   track_cleanup "$dir"
   printf -v "$1" '%s' "$dir"
 }
@@ -175,7 +179,14 @@ install_traps() {
 # Project paths
 # ---------------------------------------------------------------------------
 
-# Resolved lazily so sourcing never fails outside mise; fails loudly on use.
+# project_root -> prints the repository root: $MISE_PROJECT_ROOT inside a
+# mise task, otherwise the enclosing git work tree. Resolved lazily so
+# sourcing never fails; fails loudly on use.
 project_root() {
-  printf '%s\n' "${MISE_PROJECT_ROOT:?run via 'mise run <task>' so MISE_PROJECT_ROOT is set}"
+  if [[ -n "${MISE_PROJECT_ROOT:-}" ]]; then
+    printf '%s\n' "$MISE_PROJECT_ROOT"
+    return 0
+  fi
+  git rev-parse --show-toplevel 2>/dev/null ||
+    die "Cannot find the project root: run inside a git repository or via 'mise run <task>'."
 }

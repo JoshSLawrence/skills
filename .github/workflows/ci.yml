@@ -31,6 +31,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Skills install independently, so mise-tasks ships its own copy of the
+      # bash skill's helper library. Fail if the copies drift apart.
+      - name: Shared helper copies match
+        run: |
+          status=0
+          while read -r a b; do
+            if ! cmp -s "$a" "$b"; then
+              echo "::error file=$b::$b differs from $a. Edit both copies together."
+              status=1
+            fi
+          done <<'EOF'
+          bash/assets/scripts/lib/common.sh mise-tasks/assets/mise-tasks/.lib/common.sh
+          bash/assets/.shellcheckrc mise-tasks/assets/.shellcheckrc
+          EOF
+          exit "$status"
       # Each skill's assets/ mirrors the project layout users copy it into, so
       # lint from there for `source=` directives to resolve as they will for
       # users.
