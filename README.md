@@ -33,7 +33,9 @@ skill is a top-level directory containing a `SKILL.md`, plus optional
 ## Installing
 
 Skills install with the [`skills` CLI](https://github.com/vercel-labs/skills)
-(requires Node.js). It works with Claude Code and many other agents.
+(requires Node.js). The commands below put one copy in the shared
+`.agents/skills/` directory, which Codex, Cline, Pi, Warp, Zed and other
+agents read, and symlink Claude Code to it (`-a universal claude-code`).
 
 List what's available:
 
@@ -41,36 +43,37 @@ List what's available:
 npx skills add JoshSLawrence/skills --list
 ```
 
-Install one skill globally (`~/.claude/skills/`) for Claude Code:
+Install one skill globally (`~/.agents/skills/`, linked from
+`~/.claude/skills/`):
 
 ```sh
-npx skills add JoshSLawrence/skills --skill mise-tasks -g -a claude-code
+npx skills add JoshSLawrence/skills --skill bash -g -a universal claude-code
 ```
 
-Install every skill, or scope to the current project (`.claude/skills/`) by
-dropping `-g`:
+Install every skill, or drop `-g` to install into the current project
+(`.agents/skills/`, linked from `.claude/skills/`):
 
 ```sh
-npx skills add JoshSLawrence/skills --skill '*' -g -a claude-code -y
+npx skills add JoshSLawrence/skills --skill '*' -g -a universal claude-code -y
 ```
 
-Avoid `--all` here: it is shorthand for `--skill '*' --agent '*' -y`, so it
-overrides `-a` and installs into every agent the CLI supports (about 50
-directories in your home folder), with errors for agents that have no global
-skills directory (verified with `skills` 1.7.2).
+Always name the agents. `-a claude-code` on its own copies into
+`~/.claude/skills/` only, so no other agent sees the skill. `--all` (shorthand
+for `--skill '*' --agent '*' -y`) or `-a '*'` writes a directory for every
+supported agent, about 50 in your home folder. The CLI's agent table lists
+`~/.config/agents/skills/` for `universal`, but it installs to
+`~/.agents/skills/` (verified with `skills` 1.7.2).
 
-Manage installed skills:
+Manage installed skills (`remove` cleans up both directories):
 
 ```sh
 npx skills list -g
 npx skills update -g
-npx skills remove -g mise-tasks
+npx skills remove -g bash
 ```
 
-By default the CLI keeps one canonical copy and symlinks each agent to it;
-pass `--copy` for independent copies. Restart Claude Code (or start a new
-session) to pick up new skills. The CLI sends anonymous telemetry unless
-`DISABLE_TELEMETRY=1` is set.
+Restart Claude Code (or start a new session) to pick up new skills. The CLI
+sends anonymous telemetry unless `DISABLE_TELEMETRY=1` is set.
 
 ## Contributing
 

@@ -45,18 +45,22 @@ or broken assets, and `docs`/`chore` for repo upkeep.
 
 ## Developing locally
 
-Link a working copy so edits apply immediately, without reinstalling:
+Installing from a working copy copies the skill, so rerun it after each
+change:
 
 ```sh
 git clone git@github.com:JoshSLawrence/skills.git ~/source/github/skills
 cd ~/source/github/skills
-npx skills add . --skill mise-tasks -g -a claude-code
+npx skills add . --skill mise-tasks -g -a universal claude-code -y
 ```
 
-Or link by hand:
+For edits that apply immediately, remove the installed copy and link the
+working copy by hand instead:
 
 ```sh
-ln -sfn ~/source/github/skills/mise-tasks ~/.claude/skills/mise-tasks
+npx skills remove -g mise-tasks -y
+ln -s ~/source/github/skills/mise-tasks ~/.agents/skills/mise-tasks
+ln -s ../../.agents/skills/mise-tasks ~/.claude/skills/mise-tasks
 ```
 
 Restart Claude Code (or start a new session) to pick up changes.
