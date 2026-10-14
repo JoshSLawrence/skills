@@ -13,6 +13,10 @@ skill is a top-level directory containing a `SKILL.md`, plus optional
   Pipelines that fail cleanly and deploy in order: job timeouts above tool
   timeouts, one approval environment per deployment, deploy concurrency,
   pinned actions, least-privilege tokens, and injection-safe `run:` steps.
+- [`markdown-style`](markdown-style/SKILL.md) - Write markdown that reads
+  well raw and renders where it's published: alerts by default (bold notes
+  for Azure DevOps), 80-column wrapping, aligned tables, sorted directory
+  trees, and copy-paste-friendly code blocks.
 - [`mise-env`](mise-env/SKILL.md) - Set project environment variables with
   [mise](https://mise.jdx.dev/environments/): `[env]` in `mise.toml`, `.env`
   files, per-environment config with `MISE_ENV`, sops/age-encrypted secrets
