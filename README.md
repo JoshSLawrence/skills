@@ -9,6 +9,10 @@ skill is a top-level directory containing a `SKILL.md`, plus optional
 - [`bash`](bash/SKILL.md) - Write bash scripts that fail fast, log a
   readable story, handle expected errors deliberately, and pass shellcheck
   and shfmt, with a shared helper library and the strict-mode gotchas.
+- [`ci-pipelines`](ci-pipelines/SKILL.md) - Write GitHub Actions and Azure
+  Pipelines that fail cleanly and deploy in order: job timeouts above tool
+  timeouts, one approval environment per deployment, deploy concurrency,
+  pinned actions, least-privilege tokens, and injection-safe `run:` steps.
 - [`mise-env`](mise-env/SKILL.md) - Set project environment variables with
   [mise](https://mise.jdx.dev/environments/): `[env]` in `mise.toml`, `.env`
   files, per-environment config with `MISE_ENV`, sops/age-encrypted secrets
