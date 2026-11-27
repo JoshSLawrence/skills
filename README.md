@@ -9,6 +9,10 @@ skill is a top-level directory containing a `SKILL.md`, plus optional
 - [`bash`](bash/SKILL.md) - Write bash scripts that fail fast, log a
   readable story, handle expected errors deliberately, and pass shellcheck
   and shfmt, with a shared helper library and the strict-mode gotchas.
+- [`captain`](captain/SKILL.md) - Run a session as the owner's product
+  owner and orchestrator: a lean context, design, builds and reviews sent
+  to subagents, an antagonistic re-review of every fix round, and owner
+  decisions brought with recommendations. Invoked by hand (`/captain`).
 - [`ci-pipelines`](ci-pipelines/SKILL.md) - Write GitHub Actions and Azure
   Pipelines that fail cleanly and deploy in order: job timeouts above tool
   timeouts, one approval environment per deployment, deploy concurrency,
